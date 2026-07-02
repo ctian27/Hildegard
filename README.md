@@ -34,7 +34,7 @@ pipeline/
   db.py                SQLite: cycles, items, seen_ids (+ raw payloads for audit)
   dedup.py             dedup by PMID/DOI across cycles
   llm.py               per-item Claude call; enforces the identifier hard-rule downstream
-  render.py            Markdown digest per the system prompt's OUTPUT FORMAT
+  render.py            Markdown digest per the OUTPUT FORMAT + PDF conversion (markdown -> HTML -> xhtml2pdf)
   main.py              orchestrator: retrieve -> dedup -> retraction recheck -> LLM -> render
   retrieval/
     pubmed.py          E-utilities esearch/efetch; parses abstract/MeSH/pub-types; retraction/EoC detect
@@ -86,7 +86,16 @@ Note: a full default run makes one Claude call per new item across all 15
 groups, so it can take a while and costs accordingly. Use `--dry-run` first
 to see item counts, or run a single group at a time.
 
-Output: `digests/<date>_cycle.md`, linked from `digests/index.md`.
+Output per cycle: `digests/<date>_cycle.pdf` and `digests/<date>_cycle.md`
+(the Markdown is linked from `digests/index.md`). The PDF renders each
+disease group as a subheading with its identified articles underneath. Choose
+the format with `--format`:
+
+```bash
+python -m pipeline.main --group aml --format pdf    # PDF only
+python -m pipeline.main --group aml --format md     # Markdown only
+python -m pipeline.main --group aml                 # both (default)
+```
 
 By default the pipeline dedups against everything it has seen in prior runs,
 so a second run over the same window reports "0 new items". Pass

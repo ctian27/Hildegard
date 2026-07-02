@@ -124,6 +124,58 @@ def write_digest(digests_dir: str, cycle_row, content: str) -> str:
     return path
 
 
+# Print stylesheet for the PDF. h1 = cycle title, h2 = disease group
+# subheading, h3 = Guidelines/Trials, h4 = per-article title; each article
+# block renders underneath its disease-group subheading.
+_PDF_CSS = """
+@page { size: letter; margin: 2cm 1.8cm; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a1a1a; line-height: 1.4; }
+h1 { font-size: 17pt; color: #10243f; border-bottom: 2px solid #10243f; padding-bottom: 4px; margin: 0 0 6px 0; }
+h2 { font-size: 13pt; color: #10243f; background: #eef2f7; padding: 5px 8px;
+     margin: 18px 0 8px 0; border-left: 4px solid #10243f; -pdf-keep-with-next: true; }
+h3 { font-size: 11pt; color: #33475b; margin: 12px 0 4px 0; -pdf-keep-with-next: true; }
+h4 { font-size: 10pt; color: #10243f; margin: 12px 0 3px 0; -pdf-keep-with-next: true; }
+p { margin: 3px 0; }
+hr { border: none; border-top: 1px solid #c8d2de; margin: 10px 0; }
+table { -pdf-keep-in-frame-mode: shrink; border-collapse: collapse; width: 100%; margin: 4px 0 8px 0; }
+th, td { border: 1px solid #c8d2de; padding: 3px 5px; text-align: left; vertical-align: top; font-size: 9pt; }
+th { background: #f2f5f9; }
+code, pre { font-family: Courier, monospace; font-size: 7.5pt; background: #f5f5f5; }
+pre { padding: 6px; white-space: pre-wrap; word-wrap: break-word; }
+ul { margin: 3px 0 3px 0; }
+em { color: #444; }
+"""
+
+
+def markdown_to_pdf(md_content: str, out_path: str) -> str:
+    """Convert the cycle's Markdown digest to a styled PDF (pure Python:
+    markdown -> HTML -> xhtml2pdf). Disease groups render as subheadings with
+    their identified articles underneath."""
+    import markdown as md_lib
+    from xhtml2pdf import pisa
+
+    html_body = md_lib.markdown(
+        md_content,
+        extensions=["tables", "fenced_code", "sane_lists", "nl2br"],
+    )
+    html = (
+        f"<html><head><meta charset='utf-8'><style>{_PDF_CSS}</style></head>"
+        f"<body>{html_body}</body></html>"
+    )
+    with open(out_path, "wb") as f:
+        result = pisa.CreatePDF(html, dest=f, encoding="utf-8")
+    if result.err:
+        raise RuntimeError(f"PDF generation failed ({result.err} errors) for {out_path}")
+    return out_path
+
+
+def write_pdf(digests_dir: str, cycle_row, md_content: str) -> str:
+    os.makedirs(digests_dir, exist_ok=True)
+    filename = f"{cycle_row['run_date']}_cycle.pdf"
+    path = os.path.join(digests_dir, filename)
+    return markdown_to_pdf(md_content, path)
+
+
 def update_index(digests_dir: str, cycle_row, filename: str) -> None:
     index_path = os.path.join(digests_dir, "index.md")
     line = f"- [{cycle_row['run_date']}]({filename}) -- window {cycle_row['window_start']} to {cycle_row['window_end']}\n"

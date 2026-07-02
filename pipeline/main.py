@@ -29,6 +29,9 @@ def parse_args():
                     help="Reprocess every retrieved item even if seen in a prior cycle "
                          "(regenerate the same window's digest from scratch instead of "
                          "reporting 'no new items').")
+    p.add_argument("--format", choices=["pdf", "md", "both"], default="both",
+                    help="Digest output format (default: both). 'pdf' = PDF only, "
+                         "'md' = Markdown only, 'both' = write both.")
     p.add_argument("--db-path", default=config.DB_PATH)
     p.add_argument("--digests-dir", default=config.DIGESTS_DIR)
     return p.parse_args()
@@ -185,8 +188,15 @@ def main():
     cycle_row = conn.execute("SELECT * FROM cycles WHERE id = ?", (cycle_id,)).fetchone()
     items = db.get_items_for_cycle(conn, cycle_id)
     digest_md = render.render_cycle_digest(cycle_row, items, queries_meta)
-    path = render.write_digest(args.digests_dir, cycle_row, digest_md)
-    print(f"Digest written to {path}")
+
+    # The Markdown file backs the index and PDF conversion; write it whenever
+    # md or both is requested, and always as the source for PDF.
+    if args.format in ("md", "both"):
+        md_path = render.write_digest(args.digests_dir, cycle_row, digest_md)
+        print(f"Markdown digest written to {md_path}")
+    if args.format in ("pdf", "both"):
+        pdf_path = render.write_pdf(args.digests_dir, cycle_row, digest_md)
+        print(f"PDF digest written to {pdf_path}")
 
     conn.close()
 
