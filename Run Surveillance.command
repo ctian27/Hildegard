@@ -24,8 +24,17 @@ if [ ! -f "$ROOT/pipeline/gui.py" ]; then
     pause_and_exit 1
 fi
 
+# On Apple Silicon, force native arm64. If Terminal happens to be running under
+# Rosetta, a universal Python would otherwise launch as x86_64 and fail to load
+# arm64 packages ("incompatible architecture"). No-op on Intel Macs.
+if arch -arm64 /usr/bin/true 2>/dev/null; then
+    ARCH="arch -arm64"
+else
+    ARCH=""
+fi
+
 # Need a system python3 to bootstrap.
-if ! command -v python3 >/dev/null 2>&1; then
+if ! $ARCH command -v python3 >/dev/null 2>&1; then
     echo "Python 3 is required but was not found."
     echo "Install it from https://www.python.org/downloads/ and run this again."
     pause_and_exit 1
@@ -33,16 +42,17 @@ fi
 
 VENV_PY="$ROOT/.venv/bin/python"
 
-# (Re)create the virtual environment if it's missing or broken. A .venv copied
-# from another machine is broken (its config points at the old machine's paths),
-# so we validate it actually runs before trusting it.
-if [ ! -x "$VENV_PY" ] || ! "$VENV_PY" -c "import sys" >/dev/null 2>&1; then
+# (Re)create the environment if it's missing, broken, or built for the wrong
+# architecture. The import check runs under the same arch we'll launch with, so
+# an arch-mismatched venv (e.g. copied from another machine, or built while
+# Terminal was under Rosetta) is caught and rebuilt with matching wheels.
+if [ ! -x "$VENV_PY" ] || ! $ARCH "$VENV_PY" -c "import anthropic, pydantic_core, markdown, xhtml2pdf" >/dev/null 2>&1; then
     echo "First-time setup: creating the Python environment (this runs once)..."
     rm -rf "$ROOT/.venv"
-    python3 -m venv "$ROOT/.venv" || { echo "Failed to create virtual environment."; pause_and_exit 1; }
-    "$VENV_PY" -m pip install --upgrade pip >/dev/null 2>&1
+    $ARCH python3 -m venv "$ROOT/.venv" || { echo "Failed to create virtual environment."; pause_and_exit 1; }
+    $ARCH "$VENV_PY" -m pip install --upgrade pip >/dev/null 2>&1
     echo "Installing dependencies..."
-    "$VENV_PY" -m pip install -r "$ROOT/requirements.txt" || { echo "Failed to install dependencies."; pause_and_exit 1; }
+    $ARCH "$VENV_PY" -m pip install -r "$ROOT/requirements.txt" || { echo "Failed to install dependencies."; pause_and_exit 1; }
     echo "Setup complete."
 fi
 
@@ -57,7 +67,7 @@ if [ ! -f "$ROOT/.env" ] || ! grep -qE '^ANTHROPIC_API_KEY=.+' "$ROOT/.env"; the
 fi
 
 echo "Launching Literature Surveillance GUI..."
-"$VENV_PY" -m pipeline.gui
+$ARCH "$VENV_PY" -m pipeline.gui
 STATUS=$?
 if [ $STATUS -ne 0 ]; then
     echo
