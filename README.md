@@ -52,7 +52,19 @@ cp .env.example .env      # then fill in ANTHROPIC_API_KEY and (optional) NCBI_A
 
 Secrets live in `.env` (git-ignored). Never commit real keys.
 
-## Run
+## GUI (point-and-click)
+
+```bash
+python -m pipeline.gui
+```
+
+Opens a desktop window: tick the disease groups you want, choose the output
+format, optionally toggle "ignore previously seen papers" / "dry run" / a
+max-items cap, then click **Run cycle**. Output streams into the log pane.
+Uses Tkinter (bundled with Python — no extra install). Everything it does is
+also available on the command line below.
+
+## Run (command line)
 
 ```bash
 # retrieval + dedup only, no Claude calls (free, good for smoke-testing):

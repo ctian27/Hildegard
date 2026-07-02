@@ -1,0 +1,211 @@
+"""Simple desktop GUI for the surveillance pipeline.
+
+Pick disease groups with checkboxes, set a few options, and run the cycle
+with one button. Output streams into the log pane. Built on Tkinter (ships
+with Python -- no extra dependencies).
+
+Launch:
+    python -m pipeline.gui
+"""
+
+import os
+import queue
+import subprocess
+import sys
+import threading
+import tkinter as tk
+from tkinter import ttk, scrolledtext
+
+from . import config
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
+                   max_items: str = "") -> list[str]:
+    """Assemble the `python -m pipeline.main ...` argv from GUI selections.
+    Raises ValueError on invalid input (no groups, non-numeric max_items)."""
+    if not groups:
+        raise ValueError("Select at least one disease group.")
+    cmd = [sys.executable, "-m", "pipeline.main"]
+    for g in groups:
+        cmd += ["--group", g]
+    cmd += ["--format", fmt]
+    if ignore_seen:
+        cmd.append("--ignore-seen")
+    if dry_run:
+        cmd.append("--dry-run")
+    max_items = (max_items or "").strip()
+    if max_items:
+        if not max_items.isdigit():
+            raise ValueError(f"Max items must be a whole number (got {max_items!r}).")
+        cmd += ["--max-items", max_items]
+    return cmd
+
+
+class PipelineGUI:
+    def __init__(self, root: tk.Tk):
+        self.root = root
+        self.root.title("Heme/Onc Literature Surveillance")
+        self.proc: subprocess.Popen | None = None
+        self.log_queue: queue.Queue[str] = queue.Queue()
+        self.group_vars: dict[str, tk.BooleanVar] = {}
+
+        self._build_ui()
+        self.root.after(100, self._drain_log)
+
+    # --- UI construction --------------------------------------------------
+    def _build_ui(self):
+        pad = {"padx": 8, "pady": 4}
+
+        # Disease groups
+        groups_frame = ttk.LabelFrame(self.root, text="Disease groups (active)")
+        groups_frame.grid(row=0, column=0, sticky="nsew", **pad)
+        active = config.ACTIVE_GROUPS
+        cols = 3
+        for i, group in enumerate(active):
+            var = tk.BooleanVar(value=(group.key == "aml"))
+            self.group_vars[group.key] = var
+            cb = ttk.Checkbutton(groups_frame, text=group.label, variable=var)
+            cb.grid(row=i // cols, column=i % cols, sticky="w", padx=6, pady=2)
+
+        btns = ttk.Frame(groups_frame)
+        btns.grid(row=(len(active) // cols) + 1, column=0, columnspan=cols, sticky="w", pady=(6, 0))
+        ttk.Button(btns, text="Select all", command=self._select_all).pack(side="left", padx=2)
+        ttk.Button(btns, text="Clear", command=self._clear_all).pack(side="left", padx=2)
+
+        # Options
+        opts = ttk.LabelFrame(self.root, text="Options")
+        opts.grid(row=1, column=0, sticky="nsew", **pad)
+
+        self.format_var = tk.StringVar(value="both")
+        ttk.Label(opts, text="Output format:").grid(row=0, column=0, sticky="w", padx=6)
+        for i, (label, val) in enumerate([("PDF + Markdown", "both"), ("PDF only", "pdf"), ("Markdown only", "md")]):
+            ttk.Radiobutton(opts, text=label, value=val, variable=self.format_var).grid(
+                row=0, column=1 + i, sticky="w", padx=6)
+
+        self.ignore_seen_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
+                        variable=self.ignore_seen_var).grid(row=1, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+
+        self.dry_run_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(opts, text="Dry run (retrieval only, no Claude calls, free)",
+                        variable=self.dry_run_var).grid(row=2, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+
+        ttk.Label(opts, text="Max items per group (blank = no cap):").grid(row=3, column=0, sticky="w", padx=6, pady=2)
+        self.max_items_var = tk.StringVar(value="")
+        ttk.Entry(opts, textvariable=self.max_items_var, width=8).grid(row=3, column=1, sticky="w", padx=6)
+
+        # Run / stop controls
+        ctrl = ttk.Frame(self.root)
+        ctrl.grid(row=2, column=0, sticky="ew", **pad)
+        self.run_btn = ttk.Button(ctrl, text="Run cycle", command=self._run)
+        self.run_btn.pack(side="left", padx=2)
+        self.stop_btn = ttk.Button(ctrl, text="Stop", command=self._stop, state="disabled")
+        self.stop_btn.pack(side="left", padx=2)
+        self.status_var = tk.StringVar(value="Idle.")
+        ttk.Label(ctrl, textvariable=self.status_var).pack(side="left", padx=12)
+
+        # Log pane
+        log_frame = ttk.LabelFrame(self.root, text="Output")
+        log_frame.grid(row=3, column=0, sticky="nsew", **pad)
+        self.log = scrolledtext.ScrolledText(log_frame, width=90, height=18, wrap="word", state="disabled")
+        self.log.pack(fill="both", expand=True)
+
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(3, weight=1)
+
+    # --- checkbox helpers -------------------------------------------------
+    def _select_all(self):
+        for var in self.group_vars.values():
+            var.set(True)
+
+    def _clear_all(self):
+        for var in self.group_vars.values():
+            var.set(False)
+
+    # --- run / stop -------------------------------------------------------
+    def _selected_groups(self) -> list[str]:
+        return [k for k, v in self.group_vars.items() if v.get()]
+
+    def _run(self):
+        if self.proc is not None:
+            return
+        try:
+            cmd = build_command(
+                self._selected_groups(), self.format_var.get(),
+                self.ignore_seen_var.get(), self.dry_run_var.get(),
+                self.max_items_var.get(),
+            )
+        except ValueError as e:
+            self._append(f"{e}\n")
+            return
+
+        self._clear_log()
+        self._append("$ " + " ".join(cmd) + "\n\n")
+        self.run_btn.config(state="disabled")
+        self.stop_btn.config(state="normal")
+        self.status_var.set("Running...")
+
+        threading.Thread(target=self._worker, args=(cmd,), daemon=True).start()
+
+    def _worker(self, cmd: list[str]):
+        try:
+            self.proc = subprocess.Popen(
+                cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+            )
+            for line in self.proc.stdout:
+                self.log_queue.put(line)
+            self.proc.wait()
+            rc = self.proc.returncode
+            self.log_queue.put(f"\n[Finished, exit code {rc}]\n")
+            self.log_queue.put(f"__STATUS__{'Done.' if rc == 0 else f'Failed (exit {rc}).'}")
+        except Exception as e:  # surface, never swallow
+            self.log_queue.put(f"\n[Error launching pipeline: {e}]\n")
+            self.log_queue.put("__STATUS__Error.")
+        finally:
+            self.proc = None
+            self.log_queue.put("__DONE__")
+
+    def _stop(self):
+        if self.proc is not None:
+            self.proc.terminate()
+            self._append("\n[Stop requested...]\n")
+
+    # --- log pump ---------------------------------------------------------
+    def _drain_log(self):
+        try:
+            while True:
+                msg = self.log_queue.get_nowait()
+                if msg == "__DONE__":
+                    self.run_btn.config(state="normal")
+                    self.stop_btn.config(state="disabled")
+                elif msg.startswith("__STATUS__"):
+                    self.status_var.set(msg[len("__STATUS__"):])
+                else:
+                    self._append(msg)
+        except queue.Empty:
+            pass
+        self.root.after(100, self._drain_log)
+
+    def _append(self, text: str):
+        self.log.config(state="normal")
+        self.log.insert("end", text)
+        self.log.see("end")
+        self.log.config(state="disabled")
+
+    def _clear_log(self):
+        self.log.config(state="normal")
+        self.log.delete("1.0", "end")
+        self.log.config(state="disabled")
+
+
+def main():
+    root = tk.Tk()
+    PipelineGUI(root)
+    root.mainloop()
+
+
+if __name__ == "__main__":
+    main()
