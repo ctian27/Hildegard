@@ -54,15 +54,22 @@ Secrets live in `.env` (git-ignored). Never commit real keys.
 
 ## GUI (point-and-click)
 
+**Easiest:** double-click **`Literature Surveillance.app`** in the Hildegard
+folder — no Terminal needed. (First launch: if macOS says it's from an
+unidentified developer, right-click the app → **Open** → **Open**; only
+needed once.)
+
+Or from a terminal:
+
 ```bash
 python -m pipeline.gui
 ```
 
-Opens a desktop window: tick the disease groups you want, choose the output
-format, optionally toggle "ignore previously seen papers" / "dry run" / a
-max-items cap, then click **Run cycle**. Output streams into the log pane.
-Uses Tkinter (bundled with Python — no extra install). Everything it does is
-also available on the command line below.
+Either way, a desktop window opens: tick the disease groups you want, choose
+the output format, optionally toggle "ignore previously seen papers" / "dry
+run" / a max-items cap, then click **Run cycle**. Output streams into the log
+pane. Uses Tkinter (bundled with Python — no extra install). Everything it
+does is also available on the command line below.
 
 ## Run (command line)
 

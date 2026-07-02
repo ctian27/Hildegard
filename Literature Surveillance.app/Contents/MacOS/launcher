@@ -1,0 +1,40 @@
+#!/bin/bash
+# Launcher for the Heme/Onc Literature Surveillance GUI.
+# Double-click the "Literature Surveillance" app in the Hildegard folder.
+#
+# Resolves the project root relative to this app bundle, so it keeps working
+# if you move the whole Hildegard folder (as long as this .app stays inside
+# it). Falls back to a fixed path if that resolution ever fails.
+
+set -o pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"          # .../Literature Surveillance.app/Contents/MacOS
+ROOT="$(cd "$HERE/../../.." && pwd)"           # folder that contains the .app
+FALLBACK_ROOT="/Users/ctian/Documents/Hildegard"
+
+# If the bundle-relative root doesn't look like the project, use the fallback.
+if [ ! -f "$ROOT/pipeline/gui.py" ]; then
+    ROOT="$FALLBACK_ROOT"
+fi
+
+if [ ! -f "$ROOT/pipeline/gui.py" ]; then
+    osascript -e 'display alert "Literature Surveillance" message "Could not find the project files. Expected pipeline/gui.py in the Hildegard folder."'
+    exit 1
+fi
+
+cd "$ROOT" || exit 1
+
+# Prefer the project virtual environment; fall back to system python3.
+if [ -x "$ROOT/.venv/bin/python" ]; then
+    PY="$ROOT/.venv/bin/python"
+else
+    PY="python3"
+fi
+
+# Launch the GUI; capture any startup error and surface it in a dialog.
+"$PY" -m pipeline.gui 2> "$ROOT/gui_error.log"
+STATUS=$?
+if [ $STATUS -ne 0 ]; then
+    osascript -e "display alert \"Literature Surveillance failed to start\" message \"Exit code $STATUS. See gui_error.log in the Hildegard folder for details.\""
+    exit $STATUS
+fi
