@@ -217,7 +217,7 @@ SYSTEM_PROMPT_PATH = "heme_onc_literature_surveillance_prompt.md"
 DB_PATH = "data/surveillance.db"
 DIGESTS_DIR = "digests"
 
-ANTHROPIC_MODEL = "claude-sonnet-5"
+ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 ANTHROPIC_MAX_TOKENS = 6000
 
 NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
