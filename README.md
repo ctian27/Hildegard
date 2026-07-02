@@ -54,10 +54,16 @@ Secrets live in `.env` (git-ignored). Never commit real keys.
 
 ## GUI (point-and-click)
 
-**Easiest:** double-click **`Literature Surveillance.app`** in the Hildegard
-folder — no Terminal needed. (First launch: if macOS says it's from an
-unidentified developer, right-click the app → **Open** → **Open**; only
-needed once.)
+**Easiest:** double-click **`Run Surveillance.command`** in the Hildegard
+folder. It opens a small Terminal window and then the GUI. On first run it
+sets up its own Python environment automatically (takes a minute); after that
+it launches straight away. The first time, macOS may ask Terminal for
+permission to access your Documents folder — click **Allow**.
+
+> There is also a `Literature Surveillance.app` bundle (no Terminal window),
+> but macOS privacy rules block a double-clicked app from reading files inside
+> `~/Documents`/`~/Desktop`/`~/Downloads`. If the project lives in one of those
+> folders, use the `.command` file instead (or move the project elsewhere).
 
 Or from a terminal:
 
@@ -65,11 +71,26 @@ Or from a terminal:
 python -m pipeline.gui
 ```
 
-Either way, a desktop window opens: tick the disease groups you want, choose
-the output format, optionally toggle "ignore previously seen papers" / "dry
-run" / a max-items cap, then click **Run cycle**. Output streams into the log
-pane. Uses Tkinter (bundled with Python — no extra install). Everything it
-does is also available on the command line below.
+A desktop window opens: tick the disease groups you want, choose the output
+format, optionally toggle "ignore previously seen papers" / "dry run" / a
+max-items cap, then click **Run cycle**. Output streams into the log pane.
+Uses Tkinter (bundled with Python — no extra install). Everything it does is
+also available on the command line below.
+
+## Sharing this tool with someone else
+
+Send them the project folder (zip it, or share the git repo), then they
+double-click **`Run Surveillance.command`** — it builds the Python environment
+on their machine on first launch. When zipping, **exclude these** (they are
+machine-specific or private):
+
+- `.venv/` — a virtual environment is not portable; the launcher rebuilds it.
+- `.env` — your private API keys. Each person supplies their own.
+- `data/` — your local seen-items database (optional to share).
+
+The recipient needs Python 3 installed (python.org) and their own
+`ANTHROPIC_API_KEY` (and optional `NCBI_API_KEY`) placed in a `.env` file
+(copy `.env.example` to `.env`). The launcher warns if no key is set.
 
 ## Run (command line)
 

@@ -3,22 +3,20 @@
 # Double-click the "Literature Surveillance" app in the Hildegard folder.
 #
 # Resolves the project root relative to this app bundle, so it keeps working
-# if you move the whole Hildegard folder (as long as this .app stays inside
-# it). Falls back to a fixed path if that resolution ever fails.
+# wherever the Hildegard folder lives (as long as this .app stays inside it).
+#
+# NOTE: if the project folder is inside ~/Documents, ~/Desktop, or ~/Downloads,
+# macOS privacy protection blocks a double-clicked app from reading it and this
+# will fail with "Operation not permitted". In that case use
+# "Run Surveillance.command" instead, or move the project out of those folders.
 
 set -o pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"          # .../Literature Surveillance.app/Contents/MacOS
 ROOT="$(cd "$HERE/../../.." && pwd)"           # folder that contains the .app
-FALLBACK_ROOT="/Users/ctian/Documents/Hildegard"
-
-# If the bundle-relative root doesn't look like the project, use the fallback.
-if [ ! -f "$ROOT/pipeline/gui.py" ]; then
-    ROOT="$FALLBACK_ROOT"
-fi
 
 if [ ! -f "$ROOT/pipeline/gui.py" ]; then
-    osascript -e 'display alert "Literature Surveillance" message "Could not find the project files. Expected pipeline/gui.py in the Hildegard folder."'
+    osascript -e 'display alert "Literature Surveillance" message "Could not find the project files. Keep this app inside the Hildegard folder, or use Run Surveillance.command."'
     exit 1
 fi
 
