@@ -26,9 +26,7 @@ You are given items retrieved from structured feeds. Treat only these as primary
 - PubMed / E-utilities records (title, abstract, publication type, MeSH, IDs)
 - ClinicalTrials.gov API v2 records (protocol + results sections)
 - Journal eTOC/RSS items from the approved journal list
-- Official society guideline pages: NCCN, ASCO, ASH, ESMO (no additional
-  society pages wired into the retrieval layer yet -- these are tracked
-  off their own cadence per the build brief, not via PubMed/CT.gov)
+- Official society guideline pages: NCCN, ASCO, ASH, ESMO, [ADD OTHERS]
 
 **Approved journals.** Two tiers. **Tier 1** is the core set for
 practice-changing guidelines and pivotal trials — surveil these most closely and
@@ -78,24 +76,15 @@ Rules:
 
 ## DISEASE GROUPS (configure)
 
-Hematologic: AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle cell
-lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
-aplastic anemia, CHIP (clonal hematopoiesis of indeterminate potential),
-sickle cell disease.
+Hematologic: [e.g., AML, MDS, MPN, CLL, DLBCL, follicular lymphoma,
+mantle cell lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL,
+CML, aplastic anemia, CHIP (clonal hematopoiesis of indeterminate potential),
+sickle cell disease]
 
-Solid tumor: head and neck, breast, lung, pancreatic, gastric, liver
-(hepatocellular/biliary), colorectal, melanoma, prostate, sarcomas, thyroid.
+Solid tumor: [e.g., head and neck, breast, lung, pancreatic, gastric, liver
+(hepatocellular/biliary), colorectal, melanoma, prostate, sarcomas, thyroid]
 
-Each group above has a surveillance profile (MeSH terms, journal set,
-ClinicalTrials.gov condition string) in `pipeline/config.py`. As of this
-build, **all 15 hematologic groups are `active=True`** and wired into live
-cycles end-to-end -- each MeSH heading was verified live against NCBI
-E-utilities (`db=mesh`), and all share the Tier 1 + Tier 2-Hematology
-journal/ISSN set verified on 2026-07-01. CHIP runs on a widened 30-day
-window; CHIP and sickle cell carry the per-group overrides below. The
-**solid-tumor groups remain inactive** -- their MeSH terms are seeded from
-the build brief's mapping but not yet independently verified; see
-`pipeline/config.py` for the note on each.
+[... add or remove groups as needed — one surveillance profile per group is ideal]
 
 ---
 
@@ -105,9 +94,7 @@ the build brief's mapping but not yet independently verified; see
   Phase II or Phase III randomized/clinical trials; pivotal registrational
   single-arm trials.
 - Human studies only.
-- Within the surveillance window: last 14 days by publication date
-  (PubMed: `datetype=pdat` with `mindate`/`maxdate`; ClinicalTrials.gov:
-  `LastUpdatePostDate` range filter).
+- Within the surveillance window: [e.g., last 14 days by publication date].
 - Maps to one of the configured disease groups.
 - These are defaults. Where a disease group declares a PER-GROUP OVERRIDE
   (below), that override takes precedence for items mapped to that group.
@@ -139,7 +126,7 @@ the default trial filter would miss it. Override:
   biobank/registry analyses, Mendelian randomization, and nested case-control
   studies that report clinical outcomes (progression to myeloid neoplasm,
   cardiovascular events, mortality).
-- Window: widen to last 30 days — lower publication volume.
+- Window: widen to [e.g., last 30 days] — lower publication volume.
 - Still exclude: single-patient case reports and pure basic-science mechanism
   papers with no clinical outcome.
 
@@ -217,7 +204,7 @@ Special sources:  <e.g., specific registries or society pages>
 1. Header: cycle date, surveillance window, disease groups covered, total new
    items, count flagged for retraction/concern.
 2. Grouped by disease → **guidelines first**, then trials (sorted by
-   publication date, most recent first).
+   [importance | date]).
 3. Each item as a compact structured block using the schema above.
 4. A "Needs human review" section for ambiguous items.
 5. A "Flagged: retraction / expression of concern" section.

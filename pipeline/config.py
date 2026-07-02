@@ -10,10 +10,12 @@ or exact full title, NOT arbitrary name variants, so a journal name copied
 from Google Scholar's h5-index page will often silently return zero hits
 until resolved this way.
 
-Only AML (`disease_groups["aml"]`) is `active=True` in this build. Adding a
-new group is meant to be config-only: fill in `mesh_terms`, `journals`,
-`ctgov_condition`, verify them the same way AML was verified, then flip
-`active=True`.
+All 15 hematologic groups are `active=True` in this build (MeSH headings
+verified live via `db=mesh`, 2026-07-01/02; journals share the verified
+AML_JOURNALS set). Solid-tumor groups are seeded but inactive. Adding/
+activating a group is config-only: fill in `mesh_terms`, `journals`,
+`ctgov_condition`, verify them the same way (see the AML `mesh_verified`
+note), then flip `active=True`.
 """
 
 from dataclasses import dataclass, field
@@ -148,41 +150,55 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
         active=True,
         mesh_verified=True,  # confirmed via db=mesh esearch, 2026-07-01
     ),
-    # --- Remaining groups: MeSH terms below are carried over from the build
-    # brief's mapping table and are NOT independently verified yet. Journals
-    # default to the same-category union but are also unverified for
-    # journals outside TIER1/TIER2_HEMATOLOGY. Verify (see AML's mesh_verified
-    # comment above) and set active=True before including in a live cycle.
+    # --- Hematologic groups: all MeSH headings below were verified live
+    # against NCBI (db=mesh esearch, 2026-07-02) and journals share the same
+    # verified AML_JOURNALS set (Tier 1 + Tier 2-Hematology), so these are
+    # active. CHIP and sickle cell carry PER_GROUP_OVERRIDES (see above).
     "mds": DiseaseGroup("mds", "Myelodysplastic Syndromes", "hematologic",
-                         ["Myelodysplastic Syndromes"], AML_JOURNALS, "myelodysplastic syndrome"),
+                         ["Myelodysplastic Syndromes"], AML_JOURNALS, "myelodysplastic syndrome",
+                         active=True, mesh_verified=True),
     "mpn": DiseaseGroup("mpn", "Myeloproliferative Neoplasms", "hematologic",
-                         ["Myeloproliferative Disorders"], AML_JOURNALS, "myeloproliferative neoplasm"),
+                         ["Myeloproliferative Disorders"], AML_JOURNALS, "myeloproliferative neoplasm",
+                         active=True, mesh_verified=True),
     "cll": DiseaseGroup("cll", "Chronic Lymphocytic Leukemia", "hematologic",
-                         ["Leukemia, Lymphocytic, Chronic, B-Cell"], AML_JOURNALS, "chronic lymphocytic leukemia"),
+                         ["Leukemia, Lymphocytic, Chronic, B-Cell"], AML_JOURNALS, "chronic lymphocytic leukemia",
+                         active=True, mesh_verified=True),
     "dlbcl": DiseaseGroup("dlbcl", "Diffuse Large B-Cell Lymphoma", "hematologic",
-                           ["Lymphoma, Large B-Cell, Diffuse"], AML_JOURNALS, "diffuse large B-cell lymphoma"),
+                           ["Lymphoma, Large B-Cell, Diffuse"], AML_JOURNALS, "diffuse large B-cell lymphoma",
+                           active=True, mesh_verified=True),
     "follicular_lymphoma": DiseaseGroup("follicular_lymphoma", "Follicular Lymphoma", "hematologic",
-                                         ["Lymphoma, Follicular"], AML_JOURNALS, "follicular lymphoma"),
+                                         ["Lymphoma, Follicular"], AML_JOURNALS, "follicular lymphoma",
+                                         active=True, mesh_verified=True),
     "mantle_cell_lymphoma": DiseaseGroup("mantle_cell_lymphoma", "Mantle Cell Lymphoma", "hematologic",
-                                          ["Lymphoma, Mantle-Cell"], AML_JOURNALS, "mantle cell lymphoma"),
+                                          ["Lymphoma, Mantle-Cell"], AML_JOURNALS, "mantle cell lymphoma",
+                                          active=True, mesh_verified=True),
     "marginal_zone_lymphoma": DiseaseGroup("marginal_zone_lymphoma", "Marginal Zone Lymphoma", "hematologic",
-                                            ["Lymphoma, B-Cell, Marginal Zone"], AML_JOURNALS, "marginal zone lymphoma"),
+                                            ["Lymphoma, B-Cell, Marginal Zone"], AML_JOURNALS, "marginal zone lymphoma",
+                                            active=True, mesh_verified=True),
     "hodgkin": DiseaseGroup("hodgkin", "Hodgkin Lymphoma", "hematologic",
-                             ["Hodgkin Disease"], AML_JOURNALS, "Hodgkin lymphoma"),
+                             ["Hodgkin Disease"], AML_JOURNALS, "Hodgkin lymphoma",
+                             active=True, mesh_verified=True),
     "multiple_myeloma": DiseaseGroup("multiple_myeloma", "Multiple Myeloma", "hematologic",
-                                      ["Multiple Myeloma"], AML_JOURNALS, "multiple myeloma"),
+                                      ["Multiple Myeloma"], AML_JOURNALS, "multiple myeloma",
+                                      active=True, mesh_verified=True),
     "all": DiseaseGroup("all", "Acute Lymphoblastic Leukemia", "hematologic",
                          ["Precursor Cell Lymphoblastic Leukemia-Lymphoma"], AML_JOURNALS,
-                         "acute lymphoblastic leukemia"),
+                         "acute lymphoblastic leukemia", active=True, mesh_verified=True),
     "cml": DiseaseGroup("cml", "Chronic Myeloid Leukemia", "hematologic",
                          ["Leukemia, Myelogenous, Chronic, BCR-ABL Positive"], AML_JOURNALS,
-                         "chronic myeloid leukemia"),
+                         "chronic myeloid leukemia", active=True, mesh_verified=True),
     "aplastic_anemia": DiseaseGroup("aplastic_anemia", "Aplastic Anemia", "hematologic",
-                                     ["Anemia, Aplastic"], AML_JOURNALS, "aplastic anemia"),
+                                     ["Anemia, Aplastic"], AML_JOURNALS, "aplastic anemia",
+                                     active=True, mesh_verified=True),
     "chip": DiseaseGroup("chip", "Clonal Hematopoiesis of Indeterminate Potential", "hematologic",
-                          ["Clonal Hematopoiesis"], AML_JOURNALS, "clonal hematopoiesis", window_days=30),
+                          ["Clonal Hematopoiesis"], AML_JOURNALS, "clonal hematopoiesis", window_days=30,
+                          active=True, mesh_verified=True),
     "sickle_cell": DiseaseGroup("sickle_cell", "Sickle Cell Disease", "hematologic",
-                                 ["Anemia, Sickle Cell"], AML_JOURNALS, "sickle cell disease"),
+                                 ["Anemia, Sickle Cell"], AML_JOURNALS, "sickle cell disease",
+                                 active=True, mesh_verified=True),
+    # --- Solid-tumor groups: MeSH terms carried from the build brief's
+    # mapping table and NOT independently verified yet; journals default to
+    # TIER1 only. Verify (see AML's note) and set active=True before use.
     "head_neck": DiseaseGroup("head_neck", "Head and Neck Cancer", "solid_tumor",
                                ["Head and Neck Neoplasms", "Squamous Cell Carcinoma of Head and Neck"],
                                TIER1_JOURNALS, "head and neck cancer"),

@@ -13,10 +13,17 @@ contract and `pipeline_build_brief.txt` for the build spec.
 
 ## Status
 
-First milestone complete: **AML** works end-to-end against live PubMed +
+**All 15 hematologic disease groups** work end-to-end against live PubMed +
 ClinicalTrials.gov, with a real Claude extraction call per item and a
-rendered digest. Other disease groups are seeded in config but not yet
-verified/activated (see `pipeline/config.py`).
+rendered digest: AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle cell
+lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
+aplastic anemia, CHIP (30-day window + observational override), and sickle
+cell (gene/cell-therapy override). Each group's MeSH heading was verified
+live against NCBI; all share the Tier 1 + Tier 2-Hematology journal/ISSN set
+verified 2026-07-01.
+
+Solid-tumor groups are seeded in config but inactive pending MeSH/journal
+verification (see `pipeline/config.py`).
 
 ## Layout
 
@@ -61,9 +68,23 @@ python -m pipeline.main --group aml
 # (re-extracts every item and rewrites the digest instead of "0 new"):
 python -m pipeline.main --group aml --ignore-seen
 
-# default (all groups with active=True in config -- currently just AML):
+# a specific group (any active group key, e.g. multiple_myeloma, cll, chip):
+python -m pipeline.main --group multiple_myeloma
+
+# several groups in one cycle (repeat --group):
+python -m pipeline.main --group aml --group mds --group cll
+
+# default: every group with active=True in config (all 15 hematologic groups):
 python -m pipeline.main
 ```
+
+Active group keys: `aml`, `mds`, `mpn`, `cll`, `dlbcl`, `follicular_lymphoma`,
+`mantle_cell_lymphoma`, `marginal_zone_lymphoma`, `hodgkin`,
+`multiple_myeloma`, `all`, `cml`, `aplastic_anemia`, `chip`, `sickle_cell`.
+
+Note: a full default run makes one Claude call per new item across all 15
+groups, so it can take a while and costs accordingly. Use `--dry-run` first
+to see item counts, or run a single group at a time.
 
 Output: `digests/<date>_cycle.md`, linked from `digests/index.md`.
 
