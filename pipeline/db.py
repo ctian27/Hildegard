@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cycle_id INTEGER NOT NULL REFERENCES cycles(id),
     disease_group TEXT NOT NULL,
-    source_type TEXT NOT NULL,      -- 'pubmed' | 'ctgov'
+    source_type TEXT NOT NULL,      -- 'pubmed' (ClinicalTrials.gov retrieval removed)
     pmid TEXT,
     doi TEXT,
     nct TEXT,

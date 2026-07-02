@@ -1,10 +1,11 @@
 # Heme/Onc Literature Surveillance Pipeline
 
-A scheduled pipeline that surveils top hematology/oncology journals and
-ClinicalTrials.gov for newly published practice-relevant evidence
-(guidelines + phase II/III trials, plus per-group exceptions), triages /
-extracts / appraises each new item via the Claude API using the paired
-system prompt, and emits a Markdown digest.
+A scheduled pipeline that surveils top hematology/oncology journals via
+PubMed for newly published practice-relevant evidence (guidelines + phase
+II/III trials, plus per-group exceptions), triages / extracts / appraises
+each new item via the Claude API using the paired system prompt, and emits a
+Markdown digest. It surfaces **published, peer-reviewed papers only** —
+ClinicalTrials.gov registry retrieval has been removed.
 
 **Surveillance aid only.** It never makes patient-specific recommendations,
 and every item it surfaces carries a verifiable identifier (PMID / DOI /
@@ -13,9 +14,9 @@ contract and `pipeline_build_brief.txt` for the build spec.
 
 ## Status
 
-**All 15 hematologic disease groups** work end-to-end against live PubMed +
-ClinicalTrials.gov, with a real Claude extraction call per item and a
-rendered digest: AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle cell
+**All 15 hematologic disease groups** work end-to-end against live PubMed,
+with a real Claude extraction call per item and a rendered digest: AML, MDS,
+MPN, CLL, DLBCL, follicular lymphoma, mantle cell
 lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
 aplastic anemia, CHIP (30-day window + observational override), and sickle
 cell (gene/cell-therapy override). Each group's MeSH heading was verified
@@ -31,13 +32,12 @@ verification (see `pipeline/config.py`).
 pipeline/
   config.py            disease groups, journals+ISSNs (verified 2026-07-01), per-group overrides
   db.py                SQLite: cycles, items, seen_ids (+ raw payloads for audit)
-  dedup.py             dedup by PMID/DOI/NCT across cycles
+  dedup.py             dedup by PMID/DOI across cycles
   llm.py               per-item Claude call; enforces the identifier hard-rule downstream
   render.py            Markdown digest per the system prompt's OUTPUT FORMAT
   main.py              orchestrator: retrieve -> dedup -> retraction recheck -> LLM -> render
   retrieval/
     pubmed.py          E-utilities esearch/efetch; parses abstract/MeSH/pub-types; retraction/EoC detect
-    ctgov.py           ClinicalTrials.gov API v2; token pagination; date normalization
 digests/               YYYY-MM-DD_cycle.md per run + index.md
 data/                  surveillance.db (git-ignored)
 ```
@@ -95,15 +95,14 @@ rewrite that window's digest (this re-incurs one Claude call per item).
 
 ## Model
 
-Extraction uses `claude-sonnet-5` (`ANTHROPIC_MODEL` in `pipeline/config.py`).
-`ANTHROPIC_MAX_TOKENS` is set to 6000 to leave headroom above the model's
-internal reasoning tokens; truncated responses are routed to "needs human
-review" rather than emitted partially.
+Extraction uses `claude-haiku-4-5-20251001` (`ANTHROPIC_MODEL` in
+`pipeline/config.py`). `ANTHROPIC_MAX_TOKENS` is set to 6000 to leave headroom
+above the model's internal reasoning tokens; truncated responses are routed to
+"needs human review" rather than emitted partially.
 
 ## Adding a disease group
 
-1. In `pipeline/config.py`, fill in `mesh_terms`, `journals`,
-   `ctgov_condition` for the group.
+1. In `pipeline/config.py`, fill in `mesh_terms` and `journals` for the group.
 2. Verify the MeSH heading (`esearch` against `db=mesh`) and each journal's
    PubMed `[Journal]` filter term + ISSN (see the note at the top of
    `config.py` for exactly how AML's were verified).
@@ -111,7 +110,8 @@ review" rather than emitted partially.
 
 ## Not yet built (out of scope for this milestone)
 
-- Solid-tumor + remaining heme groups (config seeded, unverified/inactive).
+- Solid-tumor groups (config seeded, unverified/inactive). All 15 hematologic
+  groups are active.
 - Society guideline-page scraping (NCCN/ASCO/ASH/ESMO update off their own
   cadence, not via PubMed).
 - Europe PMC open-access full-text enrichment.

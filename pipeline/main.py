@@ -15,7 +15,7 @@ import anthropic
 from dotenv import load_dotenv
 
 from . import config, db, dedup, llm, render
-from .retrieval import ctgov, pubmed
+from .retrieval import pubmed
 
 
 def parse_args():
@@ -102,31 +102,24 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
     es = pubmed.esearch(term, window_start.replace("-", "/"), window_end.replace("-", "/"), api_key=ncbi_key)
     pm_records = pubmed.efetch(es["pmids"], api_key=ncbi_key)
 
-    studies, ctgov_meta = ctgov.search_studies(group.ctgov_condition, window_start, window_end)
-    ct_records = [ctgov.extract_record(s) for s in studies]
-
     queries_meta[group.key] = {
         "pubmed_term": term,
         "pubmed_querytranslation": es["querytranslation"],
         "pubmed_count": es["count"],
         "window": [window_start, window_end],
-        "ctgov": ctgov_meta,
     }
 
     if ignore_seen:
-        new_pm, new_ct = pm_records, ct_records
+        new_pm = pm_records
         seen_label = "all (--ignore-seen)"
     else:
         new_pm = dedup.filter_new_pubmed(conn, pm_records)
-        new_ct = dedup.filter_new_ctgov(conn, ct_records)
         seen_label = "new"
 
-    print(f"[{group.key}] PubMed: {len(pm_records)} retrieved, {len(new_pm)} {seen_label}. "
-          f"CT.gov: {len(ct_records)} retrieved, {len(new_ct)} {seen_label}.")
+    print(f"[{group.key}] PubMed: {len(pm_records)} retrieved, {len(new_pm)} {seen_label}.")
 
     if max_items is not None:
         new_pm = new_pm[:max_items]
-        new_ct = new_ct[:max(0, max_items - len(new_pm))]
 
     for rec in new_pm:
         identifiers = {"pmid": rec.get("pmid"), "doi": rec.get("doi"), "nct": None}
@@ -139,18 +132,6 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
                         rec.get("title") or "", rec.get("journal"), rec.get("pub_date"),
                         llm_out.get("record_type"), rec, status, llm_out)
         dedup.mark_pubmed_seen(conn, cycle_id, group.key, rec)
-
-    for rec in new_ct:
-        identifiers = {"pmid": None, "doi": None, "nct": rec.get("nct_id")}
-        if dry_run:
-            status, llm_out = "needs_review", {"decision": None, "markdown_block": None, "error": "dry-run: LLM skipped"}
-        else:
-            result = llm.process_item(client, system_prompt, group.key, "ctgov", rec, identifiers)
-            status, llm_out = result["status"], result
-        db.insert_item(conn, cycle_id, group.key, "ctgov", None, None, rec.get("nct_id"),
-                        rec.get("title") or "", "ClinicalTrials.gov", rec.get("last_update_post_date"),
-                        llm_out.get("record_type") or "trial", rec, status, llm_out)
-        dedup.mark_ctgov_seen(conn, cycle_id, group.key, rec)
 
     if not dry_run:
         retraction_items = recheck_retractions(conn, cycle_id, ncbi_key)

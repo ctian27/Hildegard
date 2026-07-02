@@ -132,6 +132,9 @@ class DiseaseGroup:
     category: str  # "hematologic" | "solid_tumor"
     mesh_terms: list[str]
     journals: list[Journal]
+    # Vestigial: ClinicalTrials.gov retrieval was removed (the pipeline now
+    # surfaces published PubMed papers only). Retained as documentation of the
+    # condition string, in case registry retrieval is re-added later.
     ctgov_condition: str
     window_days: int = 14
     active: bool = False
@@ -237,4 +240,3 @@ ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 ANTHROPIC_MAX_TOKENS = 6000
 
 NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-CTGOV_BASE = "https://clinicaltrials.gov/api/v2/studies"

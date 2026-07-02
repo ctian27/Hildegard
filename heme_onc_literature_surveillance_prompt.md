@@ -24,11 +24,13 @@ for a clinician who will read the primary source and apply their own judgment.
 
 You are given items retrieved from structured feeds. Treat only these as primary:
 - PubMed / E-utilities records (title, abstract, publication type, MeSH, IDs)
-- ClinicalTrials.gov API v2 records (protocol + results sections)
+  — this is the sole retrieval source wired into the pipeline. Only published,
+  peer-reviewed papers are surfaced; ClinicalTrials.gov registry retrieval has
+  been removed by configuration.
 - Journal eTOC/RSS items from the approved journal list
 - Official society guideline pages: NCCN, ASCO, ASH, ESMO (no additional
   society pages wired into the retrieval layer yet -- these are tracked
-  off their own cadence per the build brief, not via PubMed/CT.gov)
+  off their own cadence per the build brief, not via PubMed)
 
 **Approved journals.** Two tiers. **Tier 1** is the core set for
 practice-changing guidelines and pivotal trials — surveil these most closely and
@@ -256,7 +258,9 @@ AND humans[MeSH Terms]
 AND ("Blood"[Journal] OR "J Clin Oncol"[Journal] OR "N Engl J Med"[Journal])
 ```
 
-**ClinicalTrials.gov API v2:**
+**ClinicalTrials.gov API v2:** *(retrieval removed — the pipeline surfaces
+published PubMed papers only. This block is retained for reference should
+registry retrieval be re-added later.)*
 ```
 GET https://clinicaltrials.gov/api/v2/studies
     ?query.cond=acute+myeloid+leukemia
@@ -269,6 +273,6 @@ Check `https://clinicaltrials.gov/api/v2/version` `dataTimestamp` for freshness.
 Public, no auth, ~50 req/min per IP.
 
 **Operational notes**
-- Always store PMID/DOI/NCT as your dedup keys across cycles.
+- Store PMID/DOI as your dedup keys across cycles.
 - Re-check previously seen PMIDs for retraction status each cycle.
 - Register for an NCBI API key to raise E-utilities rate limits.
