@@ -25,6 +25,10 @@ def parse_args():
     p.add_argument("--window-days", type=int, default=None, help="Override the group's default window.")
     p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip Claude calls.")
     p.add_argument("--max-items", type=int, default=None, help="Cap LLM calls per group (smoke-testing).")
+    p.add_argument("--ignore-seen", action="store_true",
+                    help="Reprocess every retrieved item even if seen in a prior cycle "
+                         "(regenerate the same window's digest from scratch instead of "
+                         "reporting 'no new items').")
     p.add_argument("--db-path", default=config.DB_PATH)
     p.add_argument("--digests-dir", default=config.DIGESTS_DIR)
     return p.parse_args()
@@ -85,7 +89,7 @@ def recheck_retractions(conn, cycle_id: int, ncbi_api_key: str | None) -> list[d
 
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
               client: anthropic.Anthropic | None, system_prompt: str, dry_run: bool,
-              max_items: int | None, queries_meta: dict) -> None:
+              max_items: int | None, queries_meta: dict, ignore_seen: bool = False) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
     if override:
@@ -109,11 +113,16 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
         "ctgov": ctgov_meta,
     }
 
-    new_pm = dedup.filter_new_pubmed(conn, pm_records)
-    new_ct = dedup.filter_new_ctgov(conn, ct_records)
+    if ignore_seen:
+        new_pm, new_ct = pm_records, ct_records
+        seen_label = "all (--ignore-seen)"
+    else:
+        new_pm = dedup.filter_new_pubmed(conn, pm_records)
+        new_ct = dedup.filter_new_ctgov(conn, ct_records)
+        seen_label = "new"
 
-    print(f"[{group.key}] PubMed: {len(pm_records)} retrieved, {len(new_pm)} new. "
-          f"CT.gov: {len(ct_records)} retrieved, {len(new_ct)} new.")
+    print(f"[{group.key}] PubMed: {len(pm_records)} retrieved, {len(new_pm)} {seen_label}. "
+          f"CT.gov: {len(ct_records)} retrieved, {len(new_ct)} {seen_label}.")
 
     if max_items is not None:
         new_pm = new_pm[:max_items]
@@ -186,7 +195,7 @@ def main():
         window_days = windows[group.key]
         window_start = (today - timedelta(days=window_days)).isoformat()
         run_group(conn, cycle_id, group, window_start, run_date, client, system_prompt,
-                   args.dry_run, args.max_items, queries_meta)
+                   args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
                  (__import__("json").dumps(queries_meta, default=str), cycle_id))

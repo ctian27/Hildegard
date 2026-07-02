@@ -57,11 +57,20 @@ python -m pipeline.main --group aml --max-items 3
 # full cycle for AML:
 python -m pipeline.main --group aml
 
+# regenerate the same window from scratch, ignoring what was already seen
+# (re-extracts every item and rewrites the digest instead of "0 new"):
+python -m pipeline.main --group aml --ignore-seen
+
 # default (all groups with active=True in config -- currently just AML):
 python -m pipeline.main
 ```
 
 Output: `digests/<date>_cycle.md`, linked from `digests/index.md`.
+
+By default the pipeline dedups against everything it has seen in prior runs,
+so a second run over the same window reports "0 new items". Pass
+`--ignore-seen` to force a full re-extraction of every retrieved item and
+rewrite that window's digest (this re-incurs one Claude call per item).
 
 ## Model
 
