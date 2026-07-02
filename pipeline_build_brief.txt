@@ -1,0 +1,177 @@
+================================================================================
+LITERATURE SURVEILLANCE PIPELINE — BUILD BRIEF
+Hand-off spec for Claude Code. Pairs with:
+  heme_onc_literature_surveillance_prompt.md  (the LLM-layer system prompt)
+================================================================================
+
+PURPOSE
+-------
+A scheduled pipeline that surveils top hematology/oncology journals and trial
+registries for newly published practice-changing evidence (guidelines + phase
+II/III trials, plus per-group exceptions), triages/extracts/appraises each new
+item via the Claude API using the paired system prompt, and emits a digest.
+This tool is a surveillance aid only — it never makes patient-specific
+recommendations, and every item it surfaces must carry a verifiable identifier.
+
+Suggested stack: Python 3.11+, requests/httpx, a small local store (SQLite to
+start), the Anthropic Python SDK. Keep it modular: retrieval / dedup / enrich /
+LLM / render are separate steps so each can be tested against live data alone.
+
+
+DATA SOURCES & ENDPOINTS
+------------------------
+1. PubMed E-utilities  (metadata + abstracts; the primary source)
+   Base: https://eutils.ncbi.nlm.nih.gov/entrez/eutils/
+   - esearch.fcgi  -> returns PMIDs for a query + date window
+   - esummary.fcgi -> lightweight metadata for triage
+   - efetch.fcgi   -> full abstract + MeSH + publication types (retmode=xml)
+   Register a free NCBI API key to raise rate limits (~3/s -> ~10/s).
+
+2. ClinicalTrials.gov API v2  (catches results postings before journal pub)
+   Base: https://clinicaltrials.gov/api/v2/studies   (JSON; no auth; ~50 req/min)
+   - Token-based pagination via nextPageToken -> pass back as pageToken.
+   - Always set pageSize explicitly (default is 10).
+   - Check https://clinicaltrials.gov/api/v2/version (dataTimestamp) for freshness.
+   - WARNING: date fields are NOT normalized (mix of "2024-01-15", "January 2024",
+     "January 15, 2024"). Normalize on ingest.
+
+3. Europe PMC  (open-access full text where available; optional enrichment)
+   Base: https://www.ebi.ac.uk/europepmc/webservices/rest/
+
+4. Society guideline pages (update off their own cadence, NOT via PubMed):
+   NCCN, ASCO, ASH, ESMO. Track eTOC/RSS or guideline-index pages directly.
+
+
+QUERY CONSTRUCTION
+------------------
+PubMed — AND these building blocks per disease group (URL-encode in practice):
+  Study type (default):
+    ("Clinical Trial, Phase III"[Publication Type]
+     OR "Clinical Trial, Phase II"[Publication Type]
+     OR "Guideline"[Publication Type]
+     OR "Practice Guideline"[Publication Type])
+  Humans:   humans[MeSH Terms]
+  Disease:  <per-group MeSH, see mapping below>  (PubMed auto-explodes to narrower terms)
+  Journals: restrict to the approved set via "<Journal>"[Journal] or ISSN
+  Recency:  esearch params reldate=<window>&datetype=pdat  (or mindate/maxdate)
+
+ClinicalTrials.gov v2 example:
+  GET /api/v2/studies?query.cond=<disease>&aggFilters=phase:2,phase:3
+      &sort=LastUpdatePostDate:desc&pageSize=100&format=json
+  Use LastUpdatePostDate to catch new results postings each cycle.
+
+
+PER-GROUP MeSH MAPPING  (starting point — VERIFY each in the MeSH browser:
+https://www.ncbi.nlm.nih.gov/mesh/ ; confirm current heading + intended explosion)
+
+Hematologic
+  AML .................. "Leukemia, Myeloid, Acute"
+  MDS .................. "Myelodysplastic Syndromes"
+  MPN .................. "Myeloproliferative Disorders"
+  CLL .................. "Leukemia, Lymphocytic, Chronic, B-Cell"
+  DLBCL ............... "Lymphoma, Large B-Cell, Diffuse"
+  Follicular lymphoma . "Lymphoma, Follicular"
+  Mantle cell lymphoma  "Lymphoma, Mantle-Cell"
+  Marginal zone ....... "Lymphoma, B-Cell, Marginal Zone"
+  Hodgkin ............. "Hodgkin Disease"
+  Multiple myeloma .... "Multiple Myeloma"
+  ALL ................. "Precursor Cell Lymphoblastic Leukemia-Lymphoma"
+  CML ................. "Leukemia, Myelogenous, Chronic, BCR-ABL Positive"
+  Aplastic anemia ..... "Anemia, Aplastic"
+  CHIP ................ "Clonal Hematopoiesis"  (relatively new heading)
+  Sickle cell disease . "Anemia, Sickle Cell"
+
+Solid tumor
+  Head & neck ......... "Head and Neck Neoplasms" / "Squamous Cell Carcinoma of Head and Neck"
+  Breast .............. "Breast Neoplasms"
+  Lung ................ "Lung Neoplasms" (+ subsets "Carcinoma, Non-Small-Cell Lung",
+                                          "Small Cell Lung Carcinoma")
+  Pancreatic .......... "Pancreatic Neoplasms" (+ "Carcinoma, Pancreatic Ductal")
+  Gastric ............. "Stomach Neoplasms"
+  Liver ............... "Carcinoma, Hepatocellular" / "Liver Neoplasms"
+                        (biliary: "Cholangiocarcinoma", "Bile Duct Neoplasms")
+  Colorectal .......... "Colorectal Neoplasms"
+  Melanoma ............ "Melanoma"
+  Prostate ............ "Prostatic Neoplasms"
+  Sarcomas ............ "Sarcoma"  (broad; large subtype tree)
+  Thyroid ............. "Thyroid Neoplasms"
+
+
+PER-GROUP OVERRIDES
+-------------------
+Default inclusion = phase II/III trials + guidelines. Some groups override this;
+the authoritative rules live in the PER-GROUP OVERRIDES section of the paired
+system prompt. Implement them as per-group config the retrieval layer reads:
+  - CHIP: also include observational cohorts, biobank/registry analyses,
+    Mendelian randomization, nested case-control with clinical outcomes; widen
+    the window (lower volume). Drop the strict trial-type filter for this group.
+  - Sickle cell: also include pivotal single-arm + gene/cell-therapy studies.
+Structure config so each group can override: allowed record types, window,
+extra sources, extra exclusions. Anything not overridden inherits the default.
+
+
+JOURNAL / ISSN RESOLUTION
+-------------------------
+The system prompt lists approved journals as names (Tier 1 core + Tier 2 the
+Google Scholar h5 top-20s). Before wiring the PubMed [Journal] filter, resolve
+each to its exact NLM title abbreviation + ISSN via the NLM Catalog
+(https://www.ncbi.nlm.nih.gov/nlmcatalog) — Scholar's title strings do not
+always match PubMed's [Journal] field. Cache the resolved ISSN list.
+
+
+DEDUP, RETRACTION, STORAGE
+--------------------------
+- Dedup keys: PMID, DOI, and NCT number. Maintain a "seen" table across runs.
+- Each cycle, re-check previously seen PMIDs for retraction / expression of
+  concern (PubMed flags these). Route flagged items to a separate section and
+  exclude from clinical use. Never silently drop them.
+- Store: SQLite to start (tables: items, seen_ids, cycles). Normalize CT.gov
+  dates on ingest. Keep raw source payloads for auditability.
+
+
+LLM LAYER (Claude API)
+----------------------
+- For each NEW item, call the Anthropic Messages API with the paired file as the
+  system prompt and the retrieved record (title/abstract/MeSH/pub-types, or the
+  CT.gov protocol+results section) as the user content.
+- Enforce the prompt's hard rules downstream too: reject any item the model
+  returns without a PMID/DOI/NCT; treat extracted numbers as "read the source"
+  pointers, not quotables.
+- Batch by disease group so the digest is grouped and the model has consistent
+  context. Keep model + max_tokens configurable.
+
+
+OUTPUT / DIGEST
+---------------
+Destination (DECIDED): Markdown file written to a folder, one file per cycle.
+Keep the writer behind a small interface so email or a dashboard can be swapped
+in later without touching retrieval/LLM code.
+  Suggested layout:  digests/YYYY-MM-DD_cycle.md   (one file per run)
+  Also maintain:      digests/index.md  (running list linking to each cycle)
+Digest format follows the OUTPUT FORMAT section of the system prompt: header
+with cycle date + window + counts; grouped by disease (guidelines first, then
+trials); a "needs human review" bucket; a "flagged: retraction/concern" section;
+and a footer echoing the exact queries + date range for reproducibility.
+
+
+SCHEDULING
+----------
+Run on a fixed cadence (matches the surveillance window, e.g., every 14 days;
+CHIP override may want its own). Options: cron on a server, or GitHub Actions on
+a schedule (simplest if the repo lives on GitHub).
+
+
+SECRETS  (do not skip)
+----------------------
+NCBI API key and Anthropic API key go in environment variables or a secrets
+store — never hardcoded, never committed. Provide a .env.example and add .env to
+.gitignore. If deploying via GitHub Actions, use encrypted repo secrets.
+
+
+FIRST MILESTONE (suggested)
+---------------------------
+Get one disease group (e.g., AML) working end-to-end against live PubMed +
+CT.gov — retrieve, dedup, one Claude call, one Markdown digest — before scaling
+to all groups and adding scheduling. Validate the CT.gov date normalization and
+the retraction re-check early; those are the two things most likely to bite.
+================================================================================
