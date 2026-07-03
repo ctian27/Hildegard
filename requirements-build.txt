@@ -1,0 +1,4 @@
+# Build-time only (standalone app packaging). Not needed to run from source.
+-r requirements.txt
+pyinstaller>=6.0
+pillow>=10.0

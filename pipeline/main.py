@@ -18,7 +18,7 @@ from . import config, db, dedup, llm, render
 from .retrieval import pubmed
 
 
-def parse_args():
+def parse_args(argv=None):
     p = argparse.ArgumentParser(description="Heme/onc literature surveillance cycle")
     p.add_argument("--group", action="append", dest="groups",
                     help="Disease group key to run (repeatable). Default: all active groups.")
@@ -46,7 +46,7 @@ def parse_args():
                          "'md' = Markdown only, 'both' = write both.")
     p.add_argument("--db-path", default=config.DB_PATH)
     p.add_argument("--digests-dir", default=config.DIGESTS_DIR)
-    return p.parse_args()
+    return p.parse_args(argv)
 
 
 def resolve_groups(keys: list[str] | None) -> list[config.DiseaseGroup]:
@@ -207,12 +207,17 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
                             item["status"], item["llm_output"])
 
 
-def main():
-    load_dotenv()
-    args = parse_args()
+def main(argv=None):
+    load_dotenv(config.DOTENV_PATH)
+    args = parse_args(argv)
     groups = resolve_groups(args.groups)
     if not groups:
         sys.exit("No disease groups to run (none active; pass --group explicitly).")
+
+    # Ensure the writable output locations exist (matters for the standalone
+    # app, whose DATA_HOME is created on first run).
+    os.makedirs(os.path.dirname(args.db_path) or ".", exist_ok=True)
+    os.makedirs(args.digests_dir, exist_ok=True)
 
     # LLM summarization is used only when it's neither a dry run nor --no-llm.
     use_llm = not args.dry_run and not args.no_llm

@@ -18,7 +18,28 @@ config-only: fill in `mesh_terms`, `journals`, `ctgov_condition`, verify them
 the same way (see the AML `mesh_verified` note), then flip `active=True`.
 """
 
+import os
+import sys
 from dataclasses import dataclass, field
+
+# --- Runtime locations ----------------------------------------------------
+# The tool runs three ways: from source (dev / the .command/.bat launchers),
+# and as a PyInstaller standalone app. Resolve two roots accordingly:
+#   BUNDLE_DIR  -- read-only bundled resources (the system-prompt .md, icon)
+#   DATA_HOME   -- user-writable location for outputs (.env, data/, digests/)
+FROZEN = getattr(sys, "frozen", False)
+_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))       # .../pipeline
+_PROJECT_ROOT = os.path.dirname(_PACKAGE_DIR)                    # repo root
+
+if FROZEN:
+    BUNDLE_DIR = getattr(sys, "_MEIPASS", _PROJECT_ROOT)
+    # A standalone app can't write next to itself (may live in /Applications
+    # or a DMG), so outputs go to a visible folder in the user's home. Home
+    # root avoids the macOS Documents/Desktop/Downloads privacy prompts.
+    DATA_HOME = os.path.expanduser(os.environ.get("HILDEGARD_HOME", "~/Hildegard"))
+else:
+    BUNDLE_DIR = _PROJECT_ROOT
+    DATA_HOME = os.environ.get("HILDEGARD_HOME", _PROJECT_ROOT)
 
 
 @dataclass(frozen=True)
@@ -261,9 +282,14 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
 
 ACTIVE_GROUPS = [g for g in DISEASE_GROUPS.values() if g.active]
 
-SYSTEM_PROMPT_PATH = "heme_onc_literature_surveillance_prompt.md"
-DB_PATH = "data/surveillance.db"
-DIGESTS_DIR = "digests"
+# Bundled (read-only) resources.
+SYSTEM_PROMPT_PATH = os.path.join(BUNDLE_DIR, "heme_onc_literature_surveillance_prompt.md")
+ICON_PATH = os.path.join(BUNDLE_DIR, "assets", "hildegard_icon.png")
+
+# User-writable outputs / secrets.
+DB_PATH = os.path.join(DATA_HOME, "data", "surveillance.db")
+DIGESTS_DIR = os.path.join(DATA_HOME, "digests")
+DOTENV_PATH = os.path.join(DATA_HOME, ".env")
 
 ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
 ANTHROPIC_MAX_TOKENS = 6000

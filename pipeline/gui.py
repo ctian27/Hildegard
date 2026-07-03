@@ -47,15 +47,23 @@ def _validate_date(label: str, value: str) -> str:
     return value
 
 
+def _pipeline_prefix() -> list[str]:
+    """Command prefix that runs a pipeline cycle. In a PyInstaller bundle
+    `sys.executable` is the app itself, which dispatches on `--pipeline`; from
+    source it's the Python interpreter running `-m pipeline.main`."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable, "--pipeline"]
+    return [sys.executable, "-m", "pipeline.main"]
+
+
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
                    max_items: str = "", start_date: str = "", end_date: str = "",
                    use_llm: bool = True) -> list[str]:
-    """Assemble the `python -m pipeline.main ...` argv from GUI selections.
-    Raises ValueError on invalid input (no groups, non-numeric max_items,
-    or a malformed / reversed date range)."""
+    """Assemble the pipeline argv from GUI selections. Raises ValueError on
+    invalid input (no groups, non-numeric max_items, malformed/reversed dates)."""
     if not groups:
         raise ValueError("Select at least one disease group.")
-    cmd = [sys.executable, "-m", "pipeline.main"]
+    cmd = _pipeline_prefix()
     for g in groups:
         cmd += ["--group", g]
     cmd += ["--format", fmt]
@@ -85,7 +93,7 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
     return cmd
 
 
-ICON_PATH = os.path.join(REPO_ROOT, "assets", "hildegard_icon.png")
+ICON_PATH = config.ICON_PATH
 
 
 class PipelineGUI:
@@ -171,6 +179,14 @@ class PipelineGUI:
         ttk.Label(opts, text=f"Leave blank to use the default window: {default_window_note()}.",
                   foreground="#666").grid(row=5, column=0, columnspan=4, sticky="w", padx=6, pady=(0, 2))
 
+        # Optional Anthropic API key (for AI summaries). Pre-filled from the
+        # environment / .env if already set. Used only for the current run.
+        ttk.Label(opts, text="Anthropic API key (only for AI summaries):").grid(
+            row=7, column=0, sticky="w", padx=6, pady=2)
+        self.api_key_var = tk.StringVar(value=os.environ.get("ANTHROPIC_API_KEY", ""))
+        ttk.Entry(opts, textvariable=self.api_key_var, width=42, show="•").grid(
+            row=7, column=1, columnspan=3, sticky="w", padx=6)
+
         # Run / stop controls
         ctrl = ttk.Frame(self.root)
         ctrl.grid(row=2, column=0, sticky="ew", **pad)
@@ -238,18 +254,27 @@ class PipelineGUI:
             self._append(f"{e}\n")
             return
 
+        # Pass the API key (if typed) to the run via the environment, so it is
+        # never written to disk or shown in the echoed command line.
+        env = dict(os.environ)
+        key = self.api_key_var.get().strip()
+        if key:
+            env["ANTHROPIC_API_KEY"] = key
+
         self._clear_log()
         self._append("$ " + " ".join(cmd) + "\n\n")
         self.run_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status_var.set("Running...")
 
-        threading.Thread(target=self._worker, args=(cmd,), daemon=True).start()
+        threading.Thread(target=self._worker, args=(cmd, env), daemon=True).start()
 
-    def _worker(self, cmd: list[str]):
+    def _worker(self, cmd: list[str], env: dict):
         try:
+            os.makedirs(config.DATA_HOME, exist_ok=True)
             self.proc = subprocess.Popen(
-                cmd, cwd=REPO_ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                cmd, cwd=config.DATA_HOME, env=env,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
             )
             for line in self.proc.stdout:
@@ -299,6 +324,13 @@ class PipelineGUI:
 
 
 def main():
+    # Load .env from the writable data home so the API-key field pre-fills and
+    # the environment is consistent with what a run will see.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(config.DOTENV_PATH)
+    except Exception:
+        pass
     root = tk.Tk()
     PipelineGUI(root)
     root.mainloop()

@@ -56,7 +56,28 @@ Secrets live in `.env` (git-ignored). Never commit real keys. The
 `ANTHROPIC_API_KEY` is only needed for AI summaries; the abstracts-only mode
 (`--no-llm` / unchecking "Use AI summaries") runs without any key.
 
-## GUI (point-and-click)
+## Standalone app (no Python needed)
+
+For a true one-click experience with **nothing to install**, use the
+standalone build — the Python interpreter and every dependency are bundled
+inside the app.
+
+- **Get it:** download the zip for your OS from the repo's **Releases** page
+  (produced by CI — see "Building the standalone apps" below), unzip, and:
+  - **macOS:** double-click **`Hildegard.app`**. First launch: right-click →
+    **Open** → **Open** (unsigned app, one-time Gatekeeper step).
+  - **Windows:** open the unzipped folder and double-click **`Hildegard.exe`**.
+- **No Python, no setup, no API key required** to open it. Abstracts-only mode
+  works immediately; for AI summaries, paste an Anthropic API key into the
+  field in the window (or set one in `~/Hildegard/.env`).
+- **Where output goes:** the app writes digests to a **`Hildegard` folder in
+  your home directory** (`~/Hildegard/digests` on macOS, `%USERPROFILE%\Hildegard\digests`
+  on Windows), so it works no matter where the app itself lives.
+
+The macOS build from CI is Apple-Silicon (arm64); Intel-Mac users should run
+from source or the launcher below.
+
+## GUI from source (point-and-click, needs Python)
 
 **Easiest:**
 - **macOS:** double-click **`Run Hildegard.command`**.
@@ -68,6 +89,13 @@ launches straight away. On macOS the first launch may ask Terminal for
 permission to access your Documents folder — click **Allow**. On Windows you
 need Python installed first (python.org — tick "Add Python to PATH" during
 install).
+
+> There is also a `Hildegard.app` launcher bundle here (no Terminal window),
+> but macOS privacy rules block a double-clicked app from reading files inside
+> `~/Documents`/`~/Desktop`/`~/Downloads`. If the project lives in one of those
+> folders, use the `.command` file instead (or move the project elsewhere).
+> (This launcher bundle still needs Python — for the no-Python version use the
+> standalone build above.)
 
 > There is also a `Hildegard.app` bundle (no Terminal window),
 > but macOS privacy rules block a double-clicked app from reading files inside
@@ -202,6 +230,27 @@ above the model's internal reasoning tokens; truncated responses are routed to
 - Europe PMC open-access full-text enrichment.
 - Scheduling (cron / GitHub Actions). The pipeline is a single idempotent
   command; wiring a scheduler is a thin wrapper.
+
+## Building the standalone apps
+
+One entry point (`app.py`) serves both the GUI and, via `--pipeline`, a cycle;
+`Hildegard.spec` packages it with PyInstaller.
+
+- **Locally (your platform):**
+  ```bash
+  pip install -r requirements-build.txt
+  pyinstaller --noconfirm --clean Hildegard.spec
+  # -> dist/Hildegard.app (macOS)  or  dist/Hildegard/Hildegard.exe (Windows)
+  ```
+  To hand someone the macOS app, zip `dist/Hildegard.app`.
+- **Both platforms via CI (recommended for Windows):** the
+  `.github/workflows/build.yml` workflow builds the macOS app and the Windows
+  `.exe` on GitHub's runners. Trigger it from the **Actions** tab (Run
+  workflow), or push a tag like `v1.0` to also publish both as **Release**
+  assets. This is how you produce a Windows build without a Windows machine.
+
+`build/` and `dist/` are git-ignored; the apps are distributed via Releases,
+not committed (they're ~80–150 MB each).
 
 ## Icon
 

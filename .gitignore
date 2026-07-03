@@ -8,6 +8,9 @@ data/*.db-journal
 .DS_Store
 .claude/
 gui_error.log
+# PyInstaller build artifacts (standalone apps ship via Releases/CI, not git)
+build/
+dist/
 # personal / scratch notes, not part of the pipeline
 *.rtf
 Random Text Files/
