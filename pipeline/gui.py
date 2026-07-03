@@ -100,19 +100,20 @@ class PipelineGUI:
     def _build_ui(self):
         pad = {"padx": 8, "pady": 4}
 
-        # Disease groups
+        # Disease groups, split into Hematologic / Solid tumor subsections.
         groups_frame = ttk.LabelFrame(self.root, text="Disease groups (active)")
         groups_frame.grid(row=0, column=0, sticky="nsew", **pad)
         active = config.ACTIVE_GROUPS
-        cols = 3
-        for i, group in enumerate(active):
-            var = tk.BooleanVar(value=(group.key == "aml"))
-            self.group_vars[group.key] = var
-            cb = ttk.Checkbutton(groups_frame, text=group.label, variable=var)
-            cb.grid(row=i // cols, column=i % cols, sticky="w", padx=6, pady=2)
+        heme = [g for g in active if g.category == "hematologic"]
+        solid = [g for g in active if g.category == "solid_tumor"]
+
+        heme_frame = self._build_group_section(groups_frame, "Hematologic", heme, cols=2)
+        heme_frame.grid(row=0, column=0, sticky="nw", padx=(0, 10))
+        solid_frame = self._build_group_section(groups_frame, "Solid tumor", solid, cols=2)
+        solid_frame.grid(row=0, column=1, sticky="nw")
 
         btns = ttk.Frame(groups_frame)
-        btns.grid(row=(len(active) // cols) + 1, column=0, columnspan=cols, sticky="w", pady=(6, 0))
+        btns.grid(row=1, column=0, columnspan=2, sticky="w", padx=6, pady=(6, 2))
         ttk.Button(btns, text="Select all", command=self._select_all).pack(side="left", padx=2)
         ttk.Button(btns, text="Clear", command=self._clear_all).pack(side="left", padx=2)
 
@@ -176,6 +177,26 @@ class PipelineGUI:
         self.root.rowconfigure(3, weight=1)
 
     # --- checkbox helpers -------------------------------------------------
+    def _build_group_section(self, parent, title: str, groups: list, cols: int):
+        """Build a labeled subsection of disease-group checkboxes with its own
+        All / None buttons. Registers each group's BooleanVar in group_vars."""
+        frame = ttk.LabelFrame(parent, text=title)
+        for i, group in enumerate(groups):
+            var = tk.BooleanVar(value=(group.key == "aml"))
+            self.group_vars[group.key] = var
+            ttk.Checkbutton(frame, text=group.label, variable=var).grid(
+                row=i // cols, column=i % cols, sticky="w", padx=6, pady=1)
+        keys = [g.key for g in groups]
+        sec_btns = ttk.Frame(frame)
+        sec_btns.grid(row=(len(groups) // cols) + 1, column=0, columnspan=cols, sticky="w", pady=(4, 2))
+        ttk.Button(sec_btns, text="All", width=5, command=lambda: self._set_keys(keys, True)).pack(side="left", padx=2)
+        ttk.Button(sec_btns, text="None", width=5, command=lambda: self._set_keys(keys, False)).pack(side="left", padx=2)
+        return frame
+
+    def _set_keys(self, keys: list[str], value: bool):
+        for k in keys:
+            self.group_vars[k].set(value)
+
     def _select_all(self):
         for var in self.group_vars.values():
             var.set(True)
