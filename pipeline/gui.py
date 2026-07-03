@@ -22,6 +22,22 @@ from . import config
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def default_window_note() -> str:
+    """Human-readable description of the default rolling window, derived from
+    config so it stays accurate (e.g. '14 days back from today (CHIP: 30)')."""
+    from collections import Counter
+
+    active = config.ACTIVE_GROUPS
+    if not active:
+        return "each group's default window"
+    common = Counter(g.window_days for g in active).most_common(1)[0][0]
+    note = f"{common} days back from today"
+    exceptions = [g for g in active if g.window_days != common]
+    if exceptions:
+        note += " (" + ", ".join(f"{g.key.upper()}: {g.window_days}" for g in exceptions) + ")"
+    return note
+
+
 def _validate_date(label: str, value: str) -> str:
     value = value.strip()
     try:
@@ -116,7 +132,7 @@ class PipelineGUI:
 
         self.ignore_seen_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
-                        variable=self.ignore_seen_var).grid(row=5, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+                        variable=self.ignore_seen_var).grid(row=6, column=0, columnspan=4, sticky="w", padx=6, pady=2)
 
         self.dry_run_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Dry run (retrieval only, no Claude calls, free)",
@@ -127,7 +143,7 @@ class PipelineGUI:
         ttk.Entry(opts, textvariable=self.max_items_var, width=8).grid(row=3, column=1, sticky="w", padx=6)
 
         # Date range (blank = each group's default rolling window back from today)
-        ttk.Label(opts, text="Date range (YYYY-MM-DD, blank = default window):").grid(
+        ttk.Label(opts, text="Date range (YYYY-MM-DD):").grid(
             row=4, column=0, sticky="w", padx=6, pady=2)
         date_row = ttk.Frame(opts)
         date_row.grid(row=4, column=1, columnspan=3, sticky="w", padx=6)
@@ -137,6 +153,8 @@ class PipelineGUI:
         ttk.Label(date_row, text="To").pack(side="left")
         self.end_date_var = tk.StringVar(value="")
         ttk.Entry(date_row, textvariable=self.end_date_var, width=12).pack(side="left", padx=2)
+        ttk.Label(opts, text=f"Leave blank to use the default window: {default_window_note()}.",
+                  foreground="#666").grid(row=5, column=0, columnspan=4, sticky="w", padx=6, pady=(0, 2))
 
         # Run / stop controls
         ctrl = ttk.Frame(self.root)
