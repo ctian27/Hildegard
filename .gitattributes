@@ -1,0 +1,4 @@
+# Keep launcher line endings correct regardless of the checkout platform.
+*.bat        text eol=crlf
+*.command    text eol=lf
+launcher     text eol=lf

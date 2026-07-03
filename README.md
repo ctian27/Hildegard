@@ -54,11 +54,16 @@ Secrets live in `.env` (git-ignored). Never commit real keys.
 
 ## GUI (point-and-click)
 
-**Easiest:** double-click **`Run Surveillance.command`** in the Hildegard
-folder. It opens a small Terminal window and then the GUI. On first run it
-sets up its own Python environment automatically (takes a minute); after that
-it launches straight away. The first time, macOS may ask Terminal for
-permission to access your Documents folder — click **Allow**.
+**Easiest:**
+- **macOS:** double-click **`Run Surveillance.command`**.
+- **Windows:** double-click **`Run Surveillance.bat`**.
+
+Either opens a small console window and then the GUI. On first run it sets up
+its own Python environment automatically (takes a minute); after that it
+launches straight away. On macOS the first launch may ask Terminal for
+permission to access your Documents folder — click **Allow**. On Windows you
+need Python installed first (python.org — tick "Add Python to PATH" during
+install).
 
 > There is also a `Literature Surveillance.app` bundle (no Terminal window),
 > but macOS privacy rules block a double-clicked app from reading files inside
@@ -82,8 +87,10 @@ below.
 ## Sharing this tool with someone else
 
 Send them the project folder (zip it, or share the git repo), then they
-double-click **`Run Surveillance.command`** — it builds the Python environment
-on their machine on first launch. When zipping, **exclude these** (they are
+double-click **`Run Surveillance.command`** (macOS) or **`Run
+Surveillance.bat`** (Windows) — it builds the Python environment on their
+machine on first launch. The pipeline itself is cross-platform; only the
+launcher differs by OS. When zipping, **exclude these** (they are
 machine-specific or private):
 
 - `.venv/` — a virtual environment is not portable; the launcher rebuilds it.
