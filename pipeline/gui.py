@@ -224,7 +224,7 @@ class PipelineGUI:
         All / None buttons. Registers each group's BooleanVar in group_vars."""
         frame = ttk.LabelFrame(parent, text=title)
         for i, group in enumerate(groups):
-            var = tk.BooleanVar(value=(group.key == "aml"))
+            var = tk.BooleanVar(value=False)  # nothing checked by default
             self.group_vars[group.key] = var
             ttk.Checkbutton(frame, text=group.label, variable=var).grid(
                 row=i // cols, column=i % cols, sticky="w", padx=6, pady=1)
