@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Literature Surveillance</string>
+    <string>Hildegard</string>
     <key>CFBundleDisplayName</key>
-    <string>Literature Surveillance</string>
+    <string>Hildegard</string>
     <key>CFBundleIdentifier</key>
     <string>local.hildegard.literature-surveillance</string>
     <key>CFBundleVersion</key>
@@ -16,6 +16,8 @@
     <string>APPL</string>
     <key>CFBundleExecutable</key>
     <string>launcher</string>
+    <key>CFBundleIconFile</key>
+    <string>hildegard</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.13</string>
     <key>NSHighResolutionCapable</key>

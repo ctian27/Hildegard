@@ -85,16 +85,30 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
     return cmd
 
 
+ICON_PATH = os.path.join(REPO_ROOT, "assets", "hildegard_icon.png")
+
+
 class PipelineGUI:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("Heme/Onc Literature Surveillance")
+        self.root.title("Hildegard")
+        self._set_window_icon()
         self.proc: subprocess.Popen | None = None
         self.log_queue: queue.Queue[str] = queue.Queue()
         self.group_vars: dict[str, tk.BooleanVar] = {}
 
         self._build_ui()
         self.root.after(100, self._drain_log)
+
+    def _set_window_icon(self):
+        """Set the window/taskbar icon from the bundled PNG. Kept as an
+        attribute so Tk doesn't garbage-collect it. Best-effort: a missing or
+        unreadable icon must never stop the app from opening."""
+        try:
+            self._icon_img = tk.PhotoImage(file=ICON_PATH)
+            self.root.iconphoto(True, self._icon_img)
+        except Exception:
+            pass
 
     # --- UI construction --------------------------------------------------
     def _build_ui(self):

@@ -1,4 +1,4 @@
-# Heme/Onc Literature Surveillance Pipeline
+# Hildegard — Heme/Onc Literature Surveillance Pipeline
 
 A scheduled pipeline that surveils top hematology/oncology journals via
 PubMed for newly published practice-relevant evidence (guidelines + phase
@@ -59,8 +59,8 @@ Secrets live in `.env` (git-ignored). Never commit real keys. The
 ## GUI (point-and-click)
 
 **Easiest:**
-- **macOS:** double-click **`Run Surveillance.command`**.
-- **Windows:** double-click **`Run Surveillance.bat`**.
+- **macOS:** double-click **`Run Hildegard.command`**.
+- **Windows:** double-click **`Run Hildegard.bat`**.
 
 Either opens a small console window and then the GUI. On first run it sets up
 its own Python environment automatically (takes a minute); after that it
@@ -69,7 +69,7 @@ permission to access your Documents folder — click **Allow**. On Windows you
 need Python installed first (python.org — tick "Add Python to PATH" during
 install).
 
-> There is also a `Literature Surveillance.app` bundle (no Terminal window),
+> There is also a `Hildegard.app` bundle (no Terminal window),
 > but macOS privacy rules block a double-clicked app from reading files inside
 > `~/Documents`/`~/Desktop`/`~/Downloads`. If the project lives in one of those
 > folders, use the `.command` file instead (or move the project elsewhere).
@@ -98,8 +98,8 @@ retrieval function is usable on its own.
 ## Sharing this tool with someone else
 
 Send them the project folder (zip it, or share the git repo), then they
-double-click **`Run Surveillance.command`** (macOS) or **`Run
-Surveillance.bat`** (Windows) — it builds the Python environment on their
+double-click **`Run Hildegard.command`** (macOS) or **`Run
+Hildegard.bat`** (Windows) — it builds the Python environment on their
 machine on first launch. The pipeline itself is cross-platform; only the
 launcher differs by OS. When zipping, **exclude these** (they are
 machine-specific or private):
@@ -160,7 +160,7 @@ Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `gastric`, `liver`, `colorectal`, `melanoma`, `prostate`, `sarcomas`,
 `thyroid`.
 
-Note: a full default run makes one Claude call per new item across all 15
+Note: a full default run makes one Claude call per new item across all 26
 groups, so it can take a while and costs accordingly. Use `--dry-run` first
 to see item counts, or run a single group at a time.
 
@@ -202,3 +202,9 @@ above the model's internal reasoning tokens; truncated responses are routed to
 - Europe PMC open-access full-text enrichment.
 - Scheduling (cron / GitHub Actions). The pipeline is a single idempotent
   command; wiring a scheduler is a thin wrapper.
+
+## Icon
+
+The app/window icon (`assets/`) is a detail of *The Unicorn Rests in a Garden*
+(a.k.a. *The Unicorn in Captivity*) from the Unicorn Tapestries, ca. 1495–1505,
+The Metropolitan Museum of Art — public domain (Met Open Access).

@@ -1,8 +1,8 @@
 @echo off
-rem Double-click this file (Windows) to open the Literature Surveillance GUI.
+rem Double-click this file (Windows) to open the Hildegard GUI.
 rem On first run -- or on a machine it was shared to -- it sets up its own
 rem Python environment automatically. No manual command line needed.
-rem (Mac users: use "Run Surveillance.command" instead.)
+rem (Mac users: use "Run Hildegard.command" instead.)
 
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
@@ -63,7 +63,7 @@ if not defined HAVE_KEY (
     echo.
 )
 
-echo Launching Literature Surveillance GUI...
+echo Launching Hildegard GUI...
 "%VENV_PY%" -m pipeline.gui
 if errorlevel 1 (
     echo.

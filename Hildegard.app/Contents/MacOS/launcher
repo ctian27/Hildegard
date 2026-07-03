@@ -1,6 +1,6 @@
 #!/bin/bash
-# Launcher for the Heme/Onc Literature Surveillance GUI.
-# Double-click the "Literature Surveillance" app in the Hildegard folder.
+# Launcher for the Hildegard GUI.
+# Double-click the "Hildegard" app in the Hildegard folder.
 #
 # Resolves the project root relative to this app bundle, so it keeps working
 # wherever the Hildegard folder lives (as long as this .app stays inside it).
@@ -8,15 +8,15 @@
 # NOTE: if the project folder is inside ~/Documents, ~/Desktop, or ~/Downloads,
 # macOS privacy protection blocks a double-clicked app from reading it and this
 # will fail with "Operation not permitted". In that case use
-# "Run Surveillance.command" instead, or move the project out of those folders.
+# "Run Hildegard.command" instead, or move the project out of those folders.
 
 set -o pipefail
 
-HERE="$(cd "$(dirname "$0")" && pwd)"          # .../Literature Surveillance.app/Contents/MacOS
+HERE="$(cd "$(dirname "$0")" && pwd)"          # .../Hildegard.app/Contents/MacOS
 ROOT="$(cd "$HERE/../../.." && pwd)"           # folder that contains the .app
 
 if [ ! -f "$ROOT/pipeline/gui.py" ]; then
-    osascript -e 'display alert "Literature Surveillance" message "Could not find the project files. Keep this app inside the Hildegard folder, or use Run Surveillance.command."'
+    osascript -e 'display alert "Hildegard" message "Could not find the project files. Keep this app inside the Hildegard folder, or use Run Hildegard.command."'
     exit 1
 fi
 
@@ -41,6 +41,6 @@ fi
 $ARCH "$PY" -m pipeline.gui 2> "$ROOT/gui_error.log"
 STATUS=$?
 if [ $STATUS -ne 0 ]; then
-    osascript -e "display alert \"Literature Surveillance failed to start\" message \"Exit code $STATUS. See gui_error.log in the Hildegard folder for details.\""
+    osascript -e "display alert \"Hildegard failed to start\" message \"Exit code $STATUS. See gui_error.log in the Hildegard folder for details.\""
     exit $STATUS
 fi

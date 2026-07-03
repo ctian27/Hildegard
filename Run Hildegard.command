@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click this file to open the Literature Surveillance GUI.
+# Double-click this file to open the Hildegard GUI.
 #
 # It runs through Terminal, which has permission to read files in ~/Documents
 # (a double-clicked .app bundle does not, which is why the .app can fail with
@@ -66,7 +66,7 @@ if [ ! -f "$ROOT/.env" ] || ! grep -qE '^ANTHROPIC_API_KEY=.+' "$ROOT/.env"; the
     echo
 fi
 
-echo "Launching Literature Surveillance GUI..."
+echo "Launching Hildegard GUI..."
 $ARCH "$VENV_PY" -m pipeline.gui
 STATUS=$?
 if [ $STATUS -ne 0 ]; then
