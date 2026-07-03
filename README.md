@@ -72,10 +72,12 @@ python -m pipeline.gui
 ```
 
 A desktop window opens: tick the disease groups you want, choose the output
-format, optionally toggle "ignore previously seen papers" / "dry run" / a
-max-items cap, then click **Run cycle**. Output streams into the log pane.
-Uses Tkinter (bundled with Python — no extra install). Everything it does is
-also available on the command line below.
+format, optionally set a **date range** (From / To, `YYYY-MM-DD`) or toggle
+"ignore previously seen papers" / "dry run" / a max-items cap, then click
+**Run cycle**. Leave the dates blank to use each group's default rolling
+window. Output streams into the log pane. Uses Tkinter (bundled with Python —
+no extra install). Everything it does is also available on the command line
+below.
 
 ## Sharing this tool with someone else
 
@@ -114,9 +116,21 @@ python -m pipeline.main --group multiple_myeloma
 # several groups in one cycle (repeat --group):
 python -m pipeline.main --group aml --group mds --group cll
 
+# explicit publication-date range (overrides the rolling window for all groups):
+python -m pipeline.main --group aml --start-date 2026-01-01 --end-date 2026-03-31
+
+# rolling window of a custom length, counted back from the end date (today):
+python -m pipeline.main --group aml --window-days 30
+
 # default: every group with active=True in config (all 15 hematologic groups):
 python -m pipeline.main
 ```
+
+**Date range.** By default each group searches its own rolling window (14
+days; CHIP 30) back from today. Use `--start-date`/`--end-date` (YYYY-MM-DD,
+by publication date) to search a fixed range instead — this applies to every
+selected group and overrides the per-group windows. `--start-date` alone runs
+from that date to today; `--window-days N` sets a custom rolling length.
 
 Active group keys: `aml`, `mds`, `mpn`, `cll`, `dlbcl`, `follicular_lymphoma`,
 `mantle_cell_lymphoma`, `marginal_zone_lymphoma`, `hodgkin`,

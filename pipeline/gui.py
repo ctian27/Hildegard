@@ -14,6 +14,7 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+from datetime import date
 from tkinter import ttk, scrolledtext
 
 from . import config
@@ -21,10 +22,20 @@ from . import config
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _validate_date(label: str, value: str) -> str:
+    value = value.strip()
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise ValueError(f"{label} must be in YYYY-MM-DD format (got {value!r}).")
+    return value
+
+
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
-                   max_items: str = "") -> list[str]:
+                   max_items: str = "", start_date: str = "", end_date: str = "") -> list[str]:
     """Assemble the `python -m pipeline.main ...` argv from GUI selections.
-    Raises ValueError on invalid input (no groups, non-numeric max_items)."""
+    Raises ValueError on invalid input (no groups, non-numeric max_items,
+    or a malformed / reversed date range)."""
     if not groups:
         raise ValueError("Select at least one disease group.")
     cmd = [sys.executable, "-m", "pipeline.main"]
@@ -40,6 +51,18 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
         if not max_items.isdigit():
             raise ValueError(f"Max items must be a whole number (got {max_items!r}).")
         cmd += ["--max-items", max_items]
+    start_date = (start_date or "").strip()
+    end_date = (end_date or "").strip()
+    if start_date:
+        start_date = _validate_date("Start date", start_date)
+    if end_date:
+        end_date = _validate_date("End date", end_date)
+    if start_date and end_date and date.fromisoformat(start_date) > date.fromisoformat(end_date):
+        raise ValueError("Start date is after end date.")
+    if start_date:
+        cmd += ["--start-date", start_date]
+    if end_date:
+        cmd += ["--end-date", end_date]
     return cmd
 
 
@@ -96,6 +119,18 @@ class PipelineGUI:
         self.max_items_var = tk.StringVar(value="")
         ttk.Entry(opts, textvariable=self.max_items_var, width=8).grid(row=3, column=1, sticky="w", padx=6)
 
+        # Date range (blank = each group's default rolling window back from today)
+        ttk.Label(opts, text="Date range (YYYY-MM-DD, blank = default window):").grid(
+            row=4, column=0, sticky="w", padx=6, pady=2)
+        date_row = ttk.Frame(opts)
+        date_row.grid(row=4, column=1, columnspan=3, sticky="w", padx=6)
+        ttk.Label(date_row, text="From").pack(side="left")
+        self.start_date_var = tk.StringVar(value="")
+        ttk.Entry(date_row, textvariable=self.start_date_var, width=12).pack(side="left", padx=(2, 8))
+        ttk.Label(date_row, text="To").pack(side="left")
+        self.end_date_var = tk.StringVar(value="")
+        ttk.Entry(date_row, textvariable=self.end_date_var, width=12).pack(side="left", padx=2)
+
         # Run / stop controls
         ctrl = ttk.Frame(self.root)
         ctrl.grid(row=2, column=0, sticky="ew", **pad)
@@ -136,6 +171,7 @@ class PipelineGUI:
                 self._selected_groups(), self.format_var.get(),
                 self.ignore_seen_var.get(), self.dry_run_var.get(),
                 self.max_items_var.get(),
+                self.start_date_var.get(), self.end_date_var.get(),
             )
         except ValueError as e:
             self._append(f"{e}\n")

@@ -22,7 +22,15 @@ def parse_args():
     p = argparse.ArgumentParser(description="Heme/onc literature surveillance cycle")
     p.add_argument("--group", action="append", dest="groups",
                     help="Disease group key to run (repeatable). Default: all active groups.")
-    p.add_argument("--window-days", type=int, default=None, help="Override the group's default window.")
+    p.add_argument("--window-days", type=int, default=None,
+                    help="Rolling window size in days, counted back from the end date "
+                         "(default: each group's own window). Ignored if --start-date is given.")
+    p.add_argument("--start-date", default=None,
+                    help="Explicit start of the search window (YYYY-MM-DD, publication date). "
+                         "Overrides the rolling window and per-group windows for all groups.")
+    p.add_argument("--end-date", default=None,
+                    help="Explicit end of the search window (YYYY-MM-DD, publication date). "
+                         "Defaults to today.")
     p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip Claude calls.")
     p.add_argument("--max-items", type=int, default=None, help="Cap LLM calls per group (smoke-testing).")
     p.add_argument("--ignore-seen", action="store_true",
@@ -44,6 +52,32 @@ def resolve_groups(keys: list[str] | None) -> list[config.DiseaseGroup]:
             sys.exit(f"Unknown disease group(s): {missing}. Known: {list(config.DISEASE_GROUPS)}")
         return [config.DISEASE_GROUPS[k] for k in keys]
     return config.ACTIVE_GROUPS
+
+
+def _parse_date(label: str, value: str) -> date:
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        sys.exit(f"Invalid {label} {value!r}: expected YYYY-MM-DD.")
+
+
+def resolve_window(group: config.DiseaseGroup, today: date,
+                    window_days: int | None, start_date: str | None,
+                    end_date: str | None) -> tuple[str, str]:
+    """Compute the (start, end) publication-date window for a group as ISO
+    strings. An explicit --start-date/--end-date overrides the rolling window
+    (and the group's own window) for every group; otherwise the window is
+    `window_days` (or the group's default) counted back from the end date.
+    """
+    end = _parse_date("--end-date", end_date) if end_date else today
+    if start_date:
+        start = _parse_date("--start-date", start_date)
+    else:
+        days = window_days if window_days is not None else group.window_days
+        start = end - timedelta(days=days)
+    if start > end:
+        sys.exit(f"Start date {start.isoformat()} is after end date {end.isoformat()}.")
+    return start.isoformat(), end.isoformat()
 
 
 def recheck_retractions(conn, cycle_id: int, ncbi_api_key: str | None) -> list[dict]:
@@ -168,17 +202,19 @@ def main():
     db.init_db(conn)
 
     group_keys = [g.key for g in groups]
-    windows = {g.key: args.window_days or g.window_days for g in groups}
-    overall_window_days = max(windows.values())
-    overall_start = (today - timedelta(days=overall_window_days)).isoformat()
+    group_windows = {
+        g.key: resolve_window(g, today, args.window_days, args.start_date, args.end_date)
+        for g in groups
+    }
+    overall_start = min(start for start, _ in group_windows.values())
+    overall_end = max(end for _, end in group_windows.values())
 
-    cycle_id = db.start_cycle(conn, run_date, overall_start, run_date, group_keys, {})
+    cycle_id = db.start_cycle(conn, run_date, overall_start, overall_end, group_keys, {})
 
     queries_meta: dict = {}
     for group in groups:
-        window_days = windows[group.key]
-        window_start = (today - timedelta(days=window_days)).isoformat()
-        run_group(conn, cycle_id, group, window_start, run_date, client, system_prompt,
+        window_start, window_end = group_windows[group.key]
+        run_group(conn, cycle_id, group, window_start, window_end, client, system_prompt,
                    args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
