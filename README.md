@@ -192,8 +192,13 @@ journal + date + disease name, no MeSH/pub-type gate) catches these and writes
 them to **separate files** so they never mix with the verified digest:
 `YYYY-MM-DD_recent_tier1.{md,pdf}` (core clinical journals — high signal) and
 `YYYY-MM-DD_recent_tier2.{md,pdf}` (broader set — noisier). They are shown as
-identification info + abstract, **not** AI-appraised. Disable with
-`--no-fresh-scan` (or the GUI checkbox).
+identification info + abstract, **not** AI-appraised.
+
+Because un-indexed papers have no publication-type tags, the fresh scan
+restricts to **phase II/III trials and guidelines** by title/abstract wording
+(e.g. "phase 3", "randomized", "guideline") — this is the default and cuts most
+non-trial noise. Pass `--recent-all` (or untick the GUI sub-option) to include
+every recent paper instead. Disable the whole scan with `--no-fresh-scan`.
 
 Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `follicular_lymphoma`, `mantle_cell_lymphoma`, `marginal_zone_lymphoma`,

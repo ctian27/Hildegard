@@ -166,8 +166,10 @@ def render_recent_digest(cycle_row, items: list, status_value: str, tier_label: 
         "> These are recent papers from the approved **" + tier_label + "** journals that the "
         "strict, MeSH-verified digest does not yet catch because PubMed has not finished indexing "
         "them (no MeSH terms or publication types assigned yet). They are matched by journal + "
-        "publication date + disease name, are **not** AI-appraised, and may include non-trial "
-        "articles. Treat as a heads-up list to scan manually; verify each against the source.",
+        "publication date + disease name (and, unless the broad option was used, phase II/III-trial "
+        "or guideline wording in the title/abstract), are **not** AI-appraised, and the study type "
+        "is inferred from wording, not verified. Treat as a heads-up list to scan manually; verify "
+        "each against the source.",
         "",
         "---",
         "",

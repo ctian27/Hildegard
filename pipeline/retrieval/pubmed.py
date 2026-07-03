@@ -30,17 +30,34 @@ def build_pubmed_term(mesh_terms: list[str], journals: list["config.Journal"],
     )
 
 
+# Title/abstract cues for phase II/III trials and guidelines. Since not-yet-
+# indexed papers carry no [Publication Type] tags, this is how the fresh scan
+# can still restrict to trials/guidelines -- such papers almost always say so
+# in the title or abstract. PubMed [tiab] matching is case-insensitive.
+TRIAL_GUIDELINE_TIAB = (
+    '("phase 2"[tiab] OR "phase 3"[tiab] OR "phase ii"[tiab] OR "phase iii"[tiab] '
+    'OR "phase 2/3"[tiab] OR "phase 2b"[tiab] OR randomized[tiab] OR randomised[tiab] '
+    'OR "clinical trial"[tiab] OR guideline[tiab] OR guidelines[tiab] OR consensus[tiab] '
+    'OR recommendation[tiab] OR recommendations[tiab])'
+)
+
+
 def build_fresh_term(mesh_terms: list[str], journals: list["config.Journal"],
-                      text_terms: list[str]) -> str:
+                      text_terms: list[str], trials_guidelines_only: bool = True) -> str:
     """Query for recently-published, possibly not-yet-indexed papers in a
-    (Tier 1) journal set. Deliberately drops the pub-type and humans[MeSH]
-    gates and matches the disease by MeSH *or* title/abstract text, so a
-    freshly-loaded citation with no MeSH yet is still caught."""
+    journal set. Deliberately drops the pub-type and humans[MeSH] gates and
+    matches the disease by MeSH *or* title/abstract text, so a freshly-loaded
+    citation with no MeSH yet is still caught. When `trials_guidelines_only`,
+    also require phase II/III-trial or guideline language in the title/abstract
+    to cut non-trial noise."""
     mesh_clause = " OR ".join(f'"{m}"[MeSH Terms]' for m in mesh_terms)
     tiab_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in text_terms)
     disease = f"({mesh_clause} OR {tiab_clause})"
     journal_clause = " OR ".join(f'"{j.pubmed_filter_term}"[Journal]' for j in journals)
-    return f"{disease} AND ({journal_clause})"
+    term = f"{disease} AND ({journal_clause})"
+    if trials_guidelines_only:
+        term += f" AND {TRIAL_GUIDELINE_TIAB}"
+    return term
 
 
 # Publication types that are clearly not primary practice-relevant evidence;

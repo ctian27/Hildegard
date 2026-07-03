@@ -42,6 +42,10 @@ def parse_args(argv=None):
                          "papers in the approved journals. That scan (on by default) catches "
                          "major new papers the strict MeSH/pub-type query misses due to PubMed "
                          "indexing lag; results go to separate recent_tier1/recent_tier2 files.")
+    p.add_argument("--recent-all", action="store_true",
+                    help="In the fresh scan, include ALL recent papers, not just phase II/III "
+                         "trials and guidelines. By default the fresh scan restricts to "
+                         "trial/guideline-like papers (by title/abstract cues) to cut noise.")
     p.add_argument("--ignore-seen", action="store_true",
                     help="Reprocess every retrieved item even if seen in a prior cycle "
                          "(regenerate the same window's digest from scratch instead of "
@@ -155,14 +159,15 @@ def _abstract_only_output(rec: dict) -> tuple[str, dict]:
 def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
                      window_start: str, window_end: str, ncbi_key: str | None,
                      ignore_seen: bool, journals: list, status_value: str,
-                     meta: dict, meta_key: str) -> int:
+                     meta: dict, meta_key: str, trials_guidelines_only: bool = True) -> int:
     """Ungated scan of `journals` for recent, possibly not-yet-indexed papers.
     Inserts survivors as abstract-only items with `status_value`; returns the
     count kept. Deduped against everything already seen (incl. this cycle's
     strict + retraction items, since those were marked seen first)."""
     if not journals:
         return 0
-    term = pubmed.build_fresh_term(group.mesh_terms, journals, [group.ctgov_condition])
+    term = pubmed.build_fresh_term(group.mesh_terms, journals, [group.ctgov_condition],
+                                    trials_guidelines_only=trials_guidelines_only)
     es = pubmed.esearch(term, window_start.replace("-", "/"), window_end.replace("-", "/"), api_key=ncbi_key)
     records = pubmed.efetch(es["pmids"], api_key=ncbi_key)
     new = records if ignore_seen else dedup.filter_new_pubmed(conn, records)
@@ -189,7 +194,8 @@ def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
               client: anthropic.Anthropic | None, system_prompt: str, dry_run: bool,
               max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
-              use_llm: bool = True, fresh_scan: bool = True) -> None:
+              use_llm: bool = True, fresh_scan: bool = True,
+              fresh_trials_only: bool = True) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
     if override:
@@ -253,10 +259,10 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
         tier2_journals = [j for j in group.journals if j.tier == 2]
         f1 = _run_fresh_scan(conn, cycle_id, group, window_start, window_end, ncbi_key,
                               ignore_seen, config.TIER1_JOURNALS, "recent_tier1",
-                              queries_meta[group.key], "fresh_tier1")
+                              queries_meta[group.key], "fresh_tier1", fresh_trials_only)
         f2 = _run_fresh_scan(conn, cycle_id, group, window_start, window_end, ncbi_key,
                               ignore_seen, tier2_journals, "recent_tier2",
-                              queries_meta[group.key], "fresh_tier2")
+                              queries_meta[group.key], "fresh_tier2", fresh_trials_only)
         print(f"[{group.key}] Fresh scan (not-yet-indexed): {f1} Tier-1, {f2} Tier-2.")
 
 
@@ -303,7 +309,8 @@ def main(argv=None):
         window_start, window_end = group_windows[group.key]
         run_group(conn, cycle_id, group, window_start, window_end, client, system_prompt,
                    args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen,
-                   use_llm=use_llm, fresh_scan=not args.no_fresh_scan)
+                   use_llm=use_llm, fresh_scan=not args.no_fresh_scan,
+                   fresh_trials_only=not args.recent_all)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
                  (__import__("json").dumps(queries_meta, default=str), cycle_id))

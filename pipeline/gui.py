@@ -58,7 +58,8 @@ def _pipeline_prefix() -> list[str]:
 
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
                    max_items: str = "", start_date: str = "", end_date: str = "",
-                   use_llm: bool = True, fresh_scan: bool = True) -> list[str]:
+                   use_llm: bool = True, fresh_scan: bool = True,
+                   fresh_trials_only: bool = True) -> list[str]:
     """Assemble the pipeline argv from GUI selections. Raises ValueError on
     invalid input (no groups, non-numeric max_items, malformed/reversed dates)."""
     if not groups:
@@ -71,6 +72,8 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
         cmd.append("--no-llm")
     if not fresh_scan:
         cmd.append("--no-fresh-scan")
+    elif not fresh_trials_only:
+        cmd.append("--recent-all")
     if ignore_seen:
         cmd.append("--ignore-seen")
     if dry_run:
@@ -158,6 +161,9 @@ class PipelineGUI:
         self.fresh_scan_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(opts, text="Catch recent papers not yet indexed by PubMed (separate Tier 1 / Tier 2 files)",
                         variable=self.fresh_scan_var).grid(row=8, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+        self.fresh_trials_only_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(opts, text="     ↳ only phase II/III trials & guidelines (uncheck to include all recent papers)",
+                        variable=self.fresh_trials_only_var).grid(row=9, column=0, columnspan=4, sticky="w", padx=6, pady=(0, 2))
 
         self.ignore_seen_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
@@ -256,6 +262,7 @@ class PipelineGUI:
                 self.start_date_var.get(), self.end_date_var.get(),
                 use_llm=self.use_llm_var.get(),
                 fresh_scan=self.fresh_scan_var.get(),
+                fresh_trials_only=self.fresh_trials_only_var.get(),
             )
         except ValueError as e:
             self._append(f"{e}\n")
