@@ -10,12 +10,12 @@ or exact full title, NOT arbitrary name variants, so a journal name copied
 from Google Scholar's h5-index page will often silently return zero hits
 until resolved this way.
 
-All 15 hematologic groups are `active=True` in this build (MeSH headings
-verified live via `db=mesh`, 2026-07-01/02; journals share the verified
-AML_JOURNALS set). Solid-tumor groups are seeded but inactive. Adding/
-activating a group is config-only: fill in `mesh_terms`, `journals`,
-`ctgov_condition`, verify them the same way (see the AML `mesh_verified`
-note), then flip `active=True`.
+All 26 groups are `active=True` in this build -- 15 hematologic (journals =
+AML_JOURNALS) and 11 solid-tumor (journals = ONCOLOGY_JOURNALS). Every MeSH
+heading was verified live via `db=mesh` (2026-07-01/02) and every journal
+[Journal] term + ISSN resolved live against PubMed. Adding a group is
+config-only: fill in `mesh_terms`, `journals`, `ctgov_condition`, verify them
+the same way (see the AML `mesh_verified` note), then flip `active=True`.
 """
 
 from dataclasses import dataclass, field
@@ -74,18 +74,39 @@ TIER2_HEMATOLOGY_JOURNALS: list[Journal] = [
     # oncology-tier titles, not part of the hematology top-20 -- omitted here.
 ]
 
-# NOT yet resolved/verified -- placeholder names only, needed before any
-# solid-tumor group is activated. Do not wire into a PubMed [Journal] filter
-# until each is verified the same way as TIER1/TIER2_HEMATOLOGY above.
-TIER2_ONCOLOGY_JOURNALS_UNVERIFIED: list[str] = [
-    "CA: A Cancer Journal for Clinicians", "Cancers", "Nature Reviews Clinical Oncology",
-    "Nature Reviews Cancer", "Clinical Cancer Research", "Cancer Cell", "Cancer Research",
-    "Molecular Cancer", "Cancer Discovery", "Nature Cancer",
-    "Journal for ImmunoTherapy of Cancer", "Journal of Experimental & Clinical Cancer Research",
-    "Frontiers in Oncology", "Cancer Communications", "Cancer Letters",
+# --- Tier 2: Oncology, top ~20 by Google Scholar h5-index -----------------
+# (PubMed [Journal] terms + ISSNs resolved live 2026-07-02; titles already in
+# TIER1 (JCO, Lancet Oncol, JAMA Oncol, Ann Oncol) or Tier 2-Heme (J Hematol
+# Oncol) are not repeated here.)
+# CAVEAT (per the system prompt): several of these -- Cancers, Frontiers in
+# Oncology, Molecular Cancer, and the Nature Reviews titles -- are high-volume
+# or review-heavy and rarely carry primary phase II/III trial data. They stay
+# in the [Journal] filter because the publication-type filter already screens
+# out reviews; do not weight them like Tier 1 when reading the digest.
+TIER2_ONCOLOGY_JOURNALS: list[Journal] = [
+    Journal("CA: A Cancer Journal for Clinicians", "CA Cancer J Clin", "0007-9235", "1542-4863", 2),
+    Journal("Cancers", "Cancers (Basel)", None, "2072-6694", 2),
+    Journal("Nature Reviews Clinical Oncology", "Nat Rev Clin Oncol", "1759-4774", "1759-4782", 2),
+    Journal("Nature Reviews Cancer", "Nat Rev Cancer", "1474-175X", "1474-1768", 2),
+    Journal("Clinical Cancer Research", "Clin Cancer Res", "1078-0432", "1557-3265", 2),
+    Journal("Cancer Cell", "Cancer Cell", "1535-6108", "1878-3686", 2),
+    Journal("Cancer Research", "Cancer Res", "0008-5472", "1538-7445", 2),
+    Journal("Molecular Cancer", "Molecular Cancer", None, "1476-4598", 2),
+    Journal("Cancer Discovery", "Cancer Discovery", "2159-8274", "2159-8290", 2),
+    Journal("Nature Cancer", "Nature Cancer", None, "2662-1347", 2),
+    Journal("Journal for ImmunoTherapy of Cancer", "J Immunother Cancer", None, "2051-1426", 2),
+    Journal("Journal of Experimental & Clinical Cancer Research", "J Exp Clin Cancer Res", "0392-9078", "1756-9966", 2),
+    Journal("Frontiers in Oncology", "Frontiers in Oncology", None, "2234-943X", 2),
+    Journal("Cancer Communications", "Cancer Commun (Lond)", None, "2523-3548", 2),
+    Journal("Cancer Letters", "Cancer Letters", "0304-3835", "1872-7980", 2),
 ]
 
+_J_HEM_ONC = [j for j in TIER2_HEMATOLOGY_JOURNALS if j.name == "Journal of Hematology & Oncology"]
+
 AML_JOURNALS: list[Journal] = TIER1_JOURNALS + TIER2_HEMATOLOGY_JOURNALS
+# Solid-tumor groups: Tier 1 core + Tier 2 Oncology (+ J Hematol Oncol, which
+# the prompt lists in both Scholar top-20s).
+ONCOLOGY_JOURNALS: list[Journal] = TIER1_JOURNALS + TIER2_ONCOLOGY_JOURNALS + _J_HEM_ONC
 
 DEFAULT_PUBLICATION_TYPES = [
     "Clinical Trial, Phase III",
@@ -199,35 +220,43 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
     "sickle_cell": DiseaseGroup("sickle_cell", "Sickle Cell Disease", "hematologic",
                                  ["Anemia, Sickle Cell"], AML_JOURNALS, "sickle cell disease",
                                  active=True, mesh_verified=True),
-    # --- Solid-tumor groups: MeSH terms carried from the build brief's
-    # mapping table and NOT independently verified yet; journals default to
-    # TIER1 only. Verify (see AML's note) and set active=True before use.
+    # --- Solid-tumor groups: MeSH headings verified live via db=mesh esearch
+    # (2026-07-02); journals use ONCOLOGY_JOURNALS (Tier 1 + Tier 2 Oncology,
+    # resolved live the same day). Active.
     "head_neck": DiseaseGroup("head_neck", "Head and Neck Cancer", "solid_tumor",
                                ["Head and Neck Neoplasms", "Squamous Cell Carcinoma of Head and Neck"],
-                               TIER1_JOURNALS, "head and neck cancer"),
+                               ONCOLOGY_JOURNALS, "head and neck cancer",
+                               active=True, mesh_verified=True),
     "breast": DiseaseGroup("breast", "Breast Cancer", "solid_tumor",
-                            ["Breast Neoplasms"], TIER1_JOURNALS, "breast cancer"),
+                            ["Breast Neoplasms"], ONCOLOGY_JOURNALS, "breast cancer",
+                            active=True, mesh_verified=True),
     "lung": DiseaseGroup("lung", "Lung Cancer", "solid_tumor",
                           ["Lung Neoplasms", "Carcinoma, Non-Small-Cell Lung", "Small Cell Lung Carcinoma"],
-                          TIER1_JOURNALS, "lung cancer"),
+                          ONCOLOGY_JOURNALS, "lung cancer", active=True, mesh_verified=True),
     "pancreatic": DiseaseGroup("pancreatic", "Pancreatic Cancer", "solid_tumor",
                                 ["Pancreatic Neoplasms", "Carcinoma, Pancreatic Ductal"],
-                                TIER1_JOURNALS, "pancreatic cancer"),
+                                ONCOLOGY_JOURNALS, "pancreatic cancer", active=True, mesh_verified=True),
     "gastric": DiseaseGroup("gastric", "Gastric Cancer", "solid_tumor",
-                             ["Stomach Neoplasms"], TIER1_JOURNALS, "gastric cancer"),
+                             ["Stomach Neoplasms"], ONCOLOGY_JOURNALS, "gastric cancer",
+                             active=True, mesh_verified=True),
     "liver": DiseaseGroup("liver", "Hepatocellular/Biliary Cancer", "solid_tumor",
                            ["Carcinoma, Hepatocellular", "Liver Neoplasms", "Cholangiocarcinoma", "Bile Duct Neoplasms"],
-                           TIER1_JOURNALS, "hepatocellular carcinoma"),
+                           ONCOLOGY_JOURNALS, "hepatocellular carcinoma", active=True, mesh_verified=True),
     "colorectal": DiseaseGroup("colorectal", "Colorectal Cancer", "solid_tumor",
-                                ["Colorectal Neoplasms"], TIER1_JOURNALS, "colorectal cancer"),
+                                ["Colorectal Neoplasms"], ONCOLOGY_JOURNALS, "colorectal cancer",
+                                active=True, mesh_verified=True),
     "melanoma": DiseaseGroup("melanoma", "Melanoma", "solid_tumor",
-                              ["Melanoma"], TIER1_JOURNALS, "melanoma"),
+                              ["Melanoma"], ONCOLOGY_JOURNALS, "melanoma",
+                              active=True, mesh_verified=True),
     "prostate": DiseaseGroup("prostate", "Prostate Cancer", "solid_tumor",
-                              ["Prostatic Neoplasms"], TIER1_JOURNALS, "prostate cancer"),
+                              ["Prostatic Neoplasms"], ONCOLOGY_JOURNALS, "prostate cancer",
+                              active=True, mesh_verified=True),
     "sarcomas": DiseaseGroup("sarcomas", "Sarcomas", "solid_tumor",
-                              ["Sarcoma"], TIER1_JOURNALS, "sarcoma"),
+                              ["Sarcoma"], ONCOLOGY_JOURNALS, "sarcoma",
+                              active=True, mesh_verified=True),
     "thyroid": DiseaseGroup("thyroid", "Thyroid Cancer", "solid_tumor",
-                             ["Thyroid Neoplasms"], TIER1_JOURNALS, "thyroid cancer"),
+                             ["Thyroid Neoplasms"], ONCOLOGY_JOURNALS, "thyroid cancer",
+                             active=True, mesh_verified=True),
 }
 
 ACTIVE_GROUPS = [g for g in DISEASE_GROUPS.values() if g.active]

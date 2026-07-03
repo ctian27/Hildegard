@@ -90,14 +90,13 @@ Solid tumor: head and neck, breast, lung, pancreatic, gastric, liver
 
 Each group above has a surveillance profile (MeSH terms, journal set,
 ClinicalTrials.gov condition string) in `pipeline/config.py`. As of this
-build, **all 15 hematologic groups are `active=True`** and wired into live
-cycles end-to-end -- each MeSH heading was verified live against NCBI
-E-utilities (`db=mesh`), and all share the Tier 1 + Tier 2-Hematology
-journal/ISSN set verified on 2026-07-01. CHIP runs on a widened 30-day
-window; CHIP and sickle cell carry the per-group overrides below. The
-**solid-tumor groups remain inactive** -- their MeSH terms are seeded from
-the build brief's mapping but not yet independently verified; see
-`pipeline/config.py` for the note on each.
+build, **all 26 groups are `active=True`** and wired into live cycles
+end-to-end -- 15 hematologic (Tier 1 + Tier 2-Hematology journals) and 11
+solid-tumor (Tier 1 + Tier 2-Oncology journals). Every MeSH heading was
+verified live against NCBI E-utilities (`db=mesh`) and every journal
+`[Journal]` term + ISSN resolved live against PubMed (2026-07-01/02). CHIP
+runs on a widened 30-day window; CHIP and sickle cell carry the per-group
+overrides below.
 
 ---
 

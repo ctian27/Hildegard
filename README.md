@@ -14,17 +14,19 @@ contract and `pipeline_build_brief.txt` for the build spec.
 
 ## Status
 
-**All 15 hematologic disease groups** work end-to-end against live PubMed,
-with a real Claude extraction call per item and a rendered digest: AML, MDS,
-MPN, CLL, DLBCL, follicular lymphoma, mantle cell
-lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
-aplastic anemia, CHIP (30-day window + observational override), and sickle
-cell (gene/cell-therapy override). Each group's MeSH heading was verified
-live against NCBI; all share the Tier 1 + Tier 2-Hematology journal/ISSN set
-verified 2026-07-01.
+**All 26 disease groups** work end-to-end against live PubMed, with a real
+Claude extraction call per item and a rendered digest.
 
-Solid-tumor groups are seeded in config but inactive pending MeSH/journal
-verification (see `pipeline/config.py`).
+- **Hematologic (15):** AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle
+  cell lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
+  aplastic anemia, CHIP (30-day window + observational override), sickle cell
+  (gene/cell-therapy override). Journals: Tier 1 + Tier 2-Hematology.
+- **Solid tumor (11):** head & neck, breast, lung, pancreatic, gastric, liver
+  (hepatocellular/biliary), colorectal, melanoma, prostate, sarcomas, thyroid.
+  Journals: Tier 1 + Tier 2-Oncology.
+
+Every group's MeSH heading was verified live against NCBI (`db=mesh`) and every
+journal `[Journal]` term + ISSN resolved live against PubMed (2026-07-01/02).
 
 ## Layout
 
@@ -141,7 +143,7 @@ python -m pipeline.main --group aml --start-date 2026-01-01 --end-date 2026-03-3
 # rolling window of a custom length, counted back from the end date (today):
 python -m pipeline.main --group aml --window-days 30
 
-# default: every group with active=True in config (all 15 hematologic groups):
+# default: every group with active=True in config (all 26 groups):
 python -m pipeline.main
 ```
 
@@ -151,9 +153,12 @@ by publication date) to search a fixed range instead — this applies to every
 selected group and overrides the per-group windows. `--start-date` alone runs
 from that date to today; `--window-days N` sets a custom rolling length.
 
-Active group keys: `aml`, `mds`, `mpn`, `cll`, `dlbcl`, `follicular_lymphoma`,
-`mantle_cell_lymphoma`, `marginal_zone_lymphoma`, `hodgkin`,
-`multiple_myeloma`, `all`, `cml`, `aplastic_anemia`, `chip`, `sickle_cell`.
+Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
+`follicular_lymphoma`, `mantle_cell_lymphoma`, `marginal_zone_lymphoma`,
+`hodgkin`, `multiple_myeloma`, `all`, `cml`, `aplastic_anemia`, `chip`,
+`sickle_cell`; solid tumor: `head_neck`, `breast`, `lung`, `pancreatic`,
+`gastric`, `liver`, `colorectal`, `melanoma`, `prostate`, `sarcomas`,
+`thyroid`.
 
 Note: a full default run makes one Claude call per new item across all 15
 groups, so it can take a while and costs accordingly. Use `--dry-run` first
@@ -192,8 +197,6 @@ above the model's internal reasoning tokens; truncated responses are routed to
 
 ## Not yet built (out of scope for this milestone)
 
-- Solid-tumor groups (config seeded, unverified/inactive). All 15 hematologic
-  groups are active.
 - Society guideline-page scraping (NCCN/ASCO/ASH/ESMO update off their own
   cadence, not via PubMed).
 - Europe PMC open-access full-text enrichment.
