@@ -9,6 +9,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write   # needed to attach built apps to the Release on tagged builds
+
 jobs:
   build:
     strategy:
