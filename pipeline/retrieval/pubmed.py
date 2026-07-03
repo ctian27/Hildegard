@@ -14,10 +14,35 @@ from .. import config
 
 HEADERS = {"User-Agent": "heme-onc-literature-surveillance/0.1"}
 RATE_LIMIT_SLEEP = 0.11  # ~9/s, safely under the 10/s API-key ceiling
+MAX_RETRIES = 5
 
 
 def _sleep():
     time.sleep(RATE_LIMIT_SLEEP)
+
+
+def _get(url: str, params: dict, timeout: int) -> requests.Response:
+    """GET with backoff on transient NCBI errors (429 rate-limit, 5xx). Without
+    an API key E-utilities allows only ~3 req/s, and the fresh scan multiplies
+    the call volume, so a bare request would otherwise crash the whole run on a
+    momentary 429."""
+    delay = 1.0
+    last_exc = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(url, params=params, headers=HEADERS, timeout=timeout)
+            if r.status_code == 429 or 500 <= r.status_code < 600:
+                raise requests.exceptions.HTTPError(f"{r.status_code}", response=r)
+            r.raise_for_status()
+            return r
+        except (requests.exceptions.HTTPError, requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout) as e:
+            last_exc = e
+            if attempt == MAX_RETRIES - 1:
+                break
+            time.sleep(delay)
+            delay = min(delay * 2, 16.0)  # exponential backoff, capped
+    raise last_exc
 
 
 def build_pubmed_term(mesh_terms: list[str], journals: list["config.Journal"],
@@ -84,8 +109,7 @@ def esearch(term: str, mindate: str, maxdate: str, api_key: str | None = None,
     }
     if api_key:
         params["api_key"] = api_key
-    r = requests.get(config.NCBI_EUTILS_BASE + "esearch.fcgi", params=params, headers=HEADERS, timeout=30)
-    r.raise_for_status()
+    r = _get(config.NCBI_EUTILS_BASE + "esearch.fcgi", params, timeout=30)
     _sleep()
     es = r.json()["esearchresult"]
     return {
@@ -175,8 +199,7 @@ def efetch(pmids: list[str], api_key: str | None = None, batch_size: int = 150) 
         params = {"db": "pubmed", "id": ",".join(batch), "retmode": "xml"}
         if api_key:
             params["api_key"] = api_key
-        r = requests.get(config.NCBI_EUTILS_BASE + "efetch.fcgi", params=params, headers=HEADERS, timeout=60)
-        r.raise_for_status()
+        r = _get(config.NCBI_EUTILS_BASE + "efetch.fcgi", params, timeout=60)
         _sleep()
         root = ET.fromstring(r.content)
         for pa in root.findall("PubmedArticle"):
