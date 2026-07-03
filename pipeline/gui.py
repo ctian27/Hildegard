@@ -58,7 +58,7 @@ def _pipeline_prefix() -> list[str]:
 
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
                    max_items: str = "", start_date: str = "", end_date: str = "",
-                   use_llm: bool = True) -> list[str]:
+                   use_llm: bool = True, fresh_scan: bool = True) -> list[str]:
     """Assemble the pipeline argv from GUI selections. Raises ValueError on
     invalid input (no groups, non-numeric max_items, malformed/reversed dates)."""
     if not groups:
@@ -69,6 +69,8 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
     cmd += ["--format", fmt]
     if not use_llm:
         cmd.append("--no-llm")
+    if not fresh_scan:
+        cmd.append("--no-fresh-scan")
     if ignore_seen:
         cmd.append("--ignore-seen")
     if dry_run:
@@ -152,6 +154,10 @@ class PipelineGUI:
         self.use_llm_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(opts, text="Use AI summaries (Claude) — uncheck for abstracts only (no API key needed)",
                         variable=self.use_llm_var).grid(row=1, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+
+        self.fresh_scan_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(opts, text="Catch recent papers not yet indexed by PubMed (separate Tier 1 / Tier 2 files)",
+                        variable=self.fresh_scan_var).grid(row=8, column=0, columnspan=4, sticky="w", padx=6, pady=2)
 
         self.ignore_seen_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
@@ -249,6 +255,7 @@ class PipelineGUI:
                 self.max_items_var.get(),
                 self.start_date_var.get(), self.end_date_var.get(),
                 use_llm=self.use_llm_var.get(),
+                fresh_scan=self.fresh_scan_var.get(),
             )
         except ValueError as e:
             self._append(f"{e}\n")

@@ -52,6 +52,8 @@ def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bo
     included = [i for i in items if i["status"] == "included"]
     needs_review = [i for i in items if i["status"] == "needs_review"]
     flagged = [i for i in items if i["status"] == "flagged_retraction"]
+    recent_t1 = [i for i in items if i["status"] == "recent_tier1"]
+    recent_t2 = [i for i in items if i["status"] == "recent_tier2"]
 
     disease_groups = json.loads(cycle_row["disease_groups"])
     lines = []
@@ -63,6 +65,10 @@ def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bo
     lines.append(f"- **Total new items surfaced:** {len(included)}")
     lines.append(f"- **Flagged for retraction/concern:** {len(flagged)}")
     lines.append(f"- **Needs human review:** {len(needs_review)}")
+    if recent_t1 or recent_t2:
+        lines.append(f"- **Recent, not yet indexed:** {len(recent_t1)} Tier 1, {len(recent_t2)} Tier 2 "
+                     "— reported separately in the `recent_tier1` / `recent_tier2` files (identification "
+                     "info + abstract; not AI-appraised).")
     if not llm_used:
         lines.append("- **Mode:** abstracts only — no AI summarization, extraction, or appraisal. "
                      "Each item shows its identification info and the verbatim source abstract.")
@@ -143,14 +149,73 @@ def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bo
     return "\n".join(lines)
 
 
-def write_digest(digests_dir: str, cycle_row, content: str) -> str:
+def render_recent_digest(cycle_row, items: list, status_value: str, tier_label: str,
+                          queries_meta: dict) -> str:
+    """Standalone document for the 'fresh scan' hits of one journal tier:
+    recent papers not yet MeSH-indexed, matched by journal + date + disease
+    text/MeSH, shown as identification info + verbatim abstract (no AI
+    appraisal). Grouped by disease."""
+    recent = [i for i in items if i["status"] == status_value]
+    disease_groups = json.loads(cycle_row["disease_groups"])
+    lines = [
+        f"# Recent {tier_label} papers — not yet indexed (needs review)",
+        "",
+        f"- **Cycle:** {cycle_row['run_date']} | **Window:** {cycle_row['window_start']} to {cycle_row['window_end']}",
+        f"- **{tier_label} journals scanned; items found:** {len(recent)}",
+        "",
+        "> These are recent papers from the approved **" + tier_label + "** journals that the "
+        "strict, MeSH-verified digest does not yet catch because PubMed has not finished indexing "
+        "them (no MeSH terms or publication types assigned yet). They are matched by journal + "
+        "publication date + disease name, are **not** AI-appraised, and may include non-trial "
+        "articles. Treat as a heads-up list to scan manually; verify each against the source.",
+        "",
+        "---",
+        "",
+    ]
+    by_group: dict[str, list] = {}
+    for item in recent:
+        by_group.setdefault(item["disease_group"], []).append(item)
+
+    if not recent:
+        lines.append("_No recent not-yet-indexed items this cycle._")
+        lines.append("")
+
+    for group_key in disease_groups:
+        group_items = by_group.get(group_key, [])
+        if not group_items:
+            continue
+        lines.append(f"## {_group_label(group_key)}")
+        lines.append("")
+        for item in sorted(group_items, key=lambda i: i["pub_date"] or "", reverse=True):
+            block = json.loads(item["llm_output"])["markdown_block"] if item["llm_output"] else None
+            lines.append(block or f"_(missing block for {item['pmid']})_")
+            lines.append("")
+
+    lines.append("---")
+    lines.append("")
+    lines.append(CLOSING_LINE)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def write_outputs(digests_dir: str, cycle_row, stem: str, md_content: str,
+                   fmt: str, index_label: str | None = None) -> list[str]:
+    """Write `<stem>.md` and/or `<stem>.pdf` per `fmt` ('md'|'pdf'|'both'), and
+    add an index entry (pointing at the .md, or .pdf if md wasn't written).
+    Returns the paths written."""
     os.makedirs(digests_dir, exist_ok=True)
-    filename = f"{cycle_row['run_date']}_cycle.md"
-    path = os.path.join(digests_dir, filename)
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(content)
-    update_index(digests_dir, cycle_row, filename)
-    return path
+    written = []
+    if fmt in ("md", "both"):
+        md_path = os.path.join(digests_dir, f"{stem}.md")
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(md_content)
+        written.append(md_path)
+    if fmt in ("pdf", "both"):
+        written.append(markdown_to_pdf(md_content, os.path.join(digests_dir, f"{stem}.pdf")))
+    if index_label and written:
+        link_target = f"{stem}.md" if fmt in ("md", "both") else f"{stem}.pdf"
+        update_index(digests_dir, cycle_row, link_target, index_label)
+    return written
 
 
 # Print stylesheet for the PDF. h1 = cycle title, h2 = disease group
@@ -198,16 +263,10 @@ def markdown_to_pdf(md_content: str, out_path: str) -> str:
     return out_path
 
 
-def write_pdf(digests_dir: str, cycle_row, md_content: str) -> str:
-    os.makedirs(digests_dir, exist_ok=True)
-    filename = f"{cycle_row['run_date']}_cycle.pdf"
-    path = os.path.join(digests_dir, filename)
-    return markdown_to_pdf(md_content, path)
-
-
-def update_index(digests_dir: str, cycle_row, filename: str) -> None:
+def update_index(digests_dir: str, cycle_row, filename: str, label: str | None = None) -> None:
     index_path = os.path.join(digests_dir, "index.md")
-    line = f"- [{cycle_row['run_date']}]({filename}) -- window {cycle_row['window_start']} to {cycle_row['window_end']}\n"
+    text = label or f"{cycle_row['run_date']} cycle"
+    line = f"- [{text}]({filename}) -- window {cycle_row['window_start']} to {cycle_row['window_end']}\n"
     header = "# Surveillance digest index\n\n"
     if os.path.exists(index_path):
         with open(index_path, "r", encoding="utf-8") as f:

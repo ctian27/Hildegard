@@ -37,6 +37,11 @@ def parse_args(argv=None):
                          "lists each paper's identification info + verbatim abstract. No "
                          "Anthropic API key required.")
     p.add_argument("--max-items", type=int, default=None, help="Cap items per group (LLM calls when AI is on).")
+    p.add_argument("--no-fresh-scan", action="store_true",
+                    help="Disable the supplementary scan for recent, not-yet-MeSH-indexed "
+                         "papers in the approved journals. That scan (on by default) catches "
+                         "major new papers the strict MeSH/pub-type query misses due to PubMed "
+                         "indexing lag; results go to separate recent_tier1/recent_tier2 files.")
     p.add_argument("--ignore-seen", action="store_true",
                     help="Reprocess every retrieved item even if seen in a prior cycle "
                          "(regenerate the same window's digest from scratch instead of "
@@ -147,10 +152,44 @@ def _abstract_only_output(rec: dict) -> tuple[str, dict]:
     return status, out
 
 
+def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
+                     window_start: str, window_end: str, ncbi_key: str | None,
+                     ignore_seen: bool, journals: list, status_value: str,
+                     meta: dict, meta_key: str) -> int:
+    """Ungated scan of `journals` for recent, possibly not-yet-indexed papers.
+    Inserts survivors as abstract-only items with `status_value`; returns the
+    count kept. Deduped against everything already seen (incl. this cycle's
+    strict + retraction items, since those were marked seen first)."""
+    if not journals:
+        return 0
+    term = pubmed.build_fresh_term(group.mesh_terms, journals, [group.ctgov_condition])
+    es = pubmed.esearch(term, window_start.replace("-", "/"), window_end.replace("-", "/"), api_key=ncbi_key)
+    records = pubmed.efetch(es["pmids"], api_key=ncbi_key)
+    new = records if ignore_seen else dedup.filter_new_pubmed(conn, records)
+    # Trim obvious non-primary noise when a fresh record already carries types.
+    kept = [r for r in new
+            if not (set(r.get("publication_types") or []) & pubmed.NON_PRIMARY_PUB_TYPES)]
+    meta[meta_key] = {"term": term, "pubmed_count": es["count"], "kept": len(kept)}
+    for rec in kept:
+        retracted = bool(rec.get("retracted"))
+        status = "flagged_retraction" if retracted else status_value
+        block = render.pubmed_record_to_markdown(rec)
+        if retracted:
+            note = rec.get("retraction_note") or "Retraction/expression of concern flagged on PubMed."
+            block = f"**FLAGGED — retraction / expression of concern.** {note}\n\n{block}"
+        out = {"decision": status, "record_type": None, "markdown_block": block,
+               "appraisal_flags": [], "override_applied": None, "error": rec.get("retraction_note")}
+        db.insert_item(conn, cycle_id, group.key, "pubmed", rec.get("pmid"), rec.get("doi"), None,
+                        rec.get("title") or "", rec.get("journal"), rec.get("pub_date"),
+                        None, rec, status, out)
+        dedup.mark_pubmed_seen(conn, cycle_id, group.key, rec)
+    return len(kept)
+
+
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
               client: anthropic.Anthropic | None, system_prompt: str, dry_run: bool,
               max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
-              use_llm: bool = True) -> None:
+              use_llm: bool = True, fresh_scan: bool = True) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
     if override:
@@ -206,6 +245,20 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
                             item["pub_date"], item["record_type"], item["raw_payload"],
                             item["status"], item["llm_output"])
 
+    # Supplementary "fresh scan": recent, possibly not-yet-MeSH-indexed papers
+    # the strict query misses (PubMed indexing lag). Tier 1 and Tier 2 are
+    # scanned separately so they can be reported in separate files. Runs after
+    # the strict pass so already-surfaced papers are deduped out.
+    if fresh_scan and not dry_run:
+        tier2_journals = [j for j in group.journals if j.tier == 2]
+        f1 = _run_fresh_scan(conn, cycle_id, group, window_start, window_end, ncbi_key,
+                              ignore_seen, config.TIER1_JOURNALS, "recent_tier1",
+                              queries_meta[group.key], "fresh_tier1")
+        f2 = _run_fresh_scan(conn, cycle_id, group, window_start, window_end, ncbi_key,
+                              ignore_seen, tier2_journals, "recent_tier2",
+                              queries_meta[group.key], "fresh_tier2")
+        print(f"[{group.key}] Fresh scan (not-yet-indexed): {f1} Tier-1, {f2} Tier-2.")
+
 
 def main(argv=None):
     load_dotenv(config.DOTENV_PATH)
@@ -250,7 +303,7 @@ def main(argv=None):
         window_start, window_end = group_windows[group.key]
         run_group(conn, cycle_id, group, window_start, window_end, client, system_prompt,
                    args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen,
-                   use_llm=use_llm)
+                   use_llm=use_llm, fresh_scan=not args.no_fresh_scan)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
                  (__import__("json").dumps(queries_meta, default=str), cycle_id))
@@ -258,16 +311,26 @@ def main(argv=None):
 
     cycle_row = conn.execute("SELECT * FROM cycles WHERE id = ?", (cycle_id,)).fetchone()
     items = db.get_items_for_cycle(conn, cycle_id)
-    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta, llm_used=use_llm)
+    rd = cycle_row["run_date"]
 
-    # The Markdown file backs the index and PDF conversion; write it whenever
-    # md or both is requested, and always as the source for PDF.
-    if args.format in ("md", "both"):
-        md_path = render.write_digest(args.digests_dir, cycle_row, digest_md)
-        print(f"Markdown digest written to {md_path}")
-    if args.format in ("pdf", "both"):
-        pdf_path = render.write_pdf(args.digests_dir, cycle_row, digest_md)
-        print(f"PDF digest written to {pdf_path}")
+    # Main verified digest.
+    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta, llm_used=use_llm)
+    for p in render.write_outputs(args.digests_dir, cycle_row, f"{rd}_cycle", digest_md,
+                                   args.format, index_label=f"{rd} cycle"):
+        print(f"Digest written to {p}")
+
+    # Separate files for the fresh-scan (recent, not-yet-indexed) hits, per tier.
+    for status_value, tier_label, stem in (
+        ("recent_tier1", "Tier 1", f"{rd}_recent_tier1"),
+        ("recent_tier2", "Tier 2", f"{rd}_recent_tier2"),
+    ):
+        n = sum(1 for i in items if i["status"] == status_value)
+        if not n:
+            continue
+        recent_md = render.render_recent_digest(cycle_row, items, status_value, tier_label, queries_meta)
+        for p in render.write_outputs(args.digests_dir, cycle_row, stem, recent_md,
+                                       args.format, index_label=f"{rd} recent {tier_label} ({n})"):
+            print(f"Recent {tier_label} written to {p}")
 
     conn.close()
 

@@ -30,6 +30,29 @@ def build_pubmed_term(mesh_terms: list[str], journals: list["config.Journal"],
     )
 
 
+def build_fresh_term(mesh_terms: list[str], journals: list["config.Journal"],
+                      text_terms: list[str]) -> str:
+    """Query for recently-published, possibly not-yet-indexed papers in a
+    (Tier 1) journal set. Deliberately drops the pub-type and humans[MeSH]
+    gates and matches the disease by MeSH *or* title/abstract text, so a
+    freshly-loaded citation with no MeSH yet is still caught."""
+    mesh_clause = " OR ".join(f'"{m}"[MeSH Terms]' for m in mesh_terms)
+    tiab_clause = " OR ".join(f'"{t}"[Title/Abstract]' for t in text_terms)
+    disease = f"({mesh_clause} OR {tiab_clause})"
+    journal_clause = " OR ".join(f'"{j.pubmed_filter_term}"[Journal]' for j in journals)
+    return f"{disease} AND ({journal_clause})"
+
+
+# Publication types that are clearly not primary practice-relevant evidence;
+# used to trim obvious noise from the (ungated) fresh scan when a record does
+# carry partial type tags.
+NON_PRIMARY_PUB_TYPES = frozenset({
+    "Editorial", "Comment", "Letter", "News", "Biography", "Historical Article",
+    "Published Erratum", "Retraction of Publication", "Retracted Publication",
+    "Expression of Concern", "Review", "Systematic Review",
+})
+
+
 def esearch(term: str, mindate: str, maxdate: str, api_key: str | None = None,
             retmax: int = 300) -> dict:
     """Returns {"pmids": [...], "count": int, "querytranslation": str}."""

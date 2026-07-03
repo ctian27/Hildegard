@@ -152,6 +152,9 @@ python -m pipeline.main --group aml --max-items 3
 # abstracts only -- no Claude, no API key needed (identification info + abstract):
 python -m pipeline.main --group aml --no-llm
 
+# disable the recent/not-yet-indexed fresh scan (on by default):
+python -m pipeline.main --group aml --no-fresh-scan
+
 # full cycle for AML:
 python -m pipeline.main --group aml
 
@@ -180,6 +183,17 @@ days; CHIP 30) back from today. Use `--start-date`/`--end-date` (YYYY-MM-DD,
 by publication date) to search a fixed range instead — this applies to every
 selected group and overrides the per-group windows. `--start-date` alone runs
 from that date to today; `--window-days N` sets a custom rolling length.
+
+**Recent, not-yet-indexed papers (fresh scan).** NLM adds MeSH terms and
+publication types weeks-to-months after a paper appears, so the strict,
+MeSH-verified query misses the newest papers — often the most important ones.
+On by default, a supplementary scan of the approved journals (matched by
+journal + date + disease name, no MeSH/pub-type gate) catches these and writes
+them to **separate files** so they never mix with the verified digest:
+`YYYY-MM-DD_recent_tier1.{md,pdf}` (core clinical journals — high signal) and
+`YYYY-MM-DD_recent_tier2.{md,pdf}` (broader set — noisier). They are shown as
+identification info + abstract, **not** AI-appraised. Disable with
+`--no-fresh-scan` (or the GUI checkbox).
 
 Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `follicular_lymphoma`, `mantle_cell_lymphoma`, `marginal_zone_lymphoma`,

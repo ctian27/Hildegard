@@ -70,6 +70,15 @@ Blood Reviews, Thrombosis and Haemostasis, Transplantation and Cellular Therapy,
 Leukemia & Lymphoma, Annals of Hematology, Transfusion, Seminars in Hematology,
 Research and Practice in Thrombosis and Haemostasis.
 
+> INDEXING LAG: NLM assigns MeSH terms and publication types weeks-to-months
+> after a paper appears, so the strict MeSH/pub-type query misses the newest
+> papers. The pipeline runs a supplementary "fresh scan" of these same approved
+> journals (matched by journal + date + disease name, no MeSH/pub-type gate) and
+> writes those hits to separate `recent_tier1` / `recent_tier2` files as
+> identification info + abstract. Those items are NOT sent to you and are NOT
+> appraised; they are a manual heads-up list. Everything in this digest is the
+> strict, verified set.
+
 Rules:
 - Work only from titles, abstracts, structured trial records, and open-access
   full text. Do **not** claim to have read paywalled full text.
