@@ -22,7 +22,33 @@ def _group_label(group_key: str) -> str:
     return group.label if group else group_key
 
 
-def render_cycle_digest(cycle_row, items: list, queries_meta: dict) -> str:
+def pubmed_record_to_markdown(rec: dict) -> str:
+    """Format a retrieved PubMed record as a Markdown block WITHOUT any LLM:
+    identification info followed by the verbatim abstract. Used when AI
+    summarization is turned off."""
+    title = rec.get("title") or "(untitled)"
+    lines = [f"#### {title}", ""]
+    meta = [
+        f"**Journal:** {rec.get('journal') or 'not reported'}",
+        f"**Date:** {rec.get('pub_date') or 'not reported'}",
+    ]
+    if rec.get("pmid"):
+        meta.append(f"**PMID:** {rec['pmid']}")
+    if rec.get("doi"):
+        meta.append(f"**DOI:** {rec['doi']}")
+    lines.append(" | ".join(meta))
+    pub_types = rec.get("publication_types") or []
+    if pub_types:
+        lines.append("")
+        lines.append(f"**Publication types:** {', '.join(pub_types)}")
+    lines.append("")
+    lines.append("**Abstract:**")
+    lines.append("")
+    lines.append(rec.get("abstract") or "_No abstract available in the source record._")
+    return "\n".join(lines)
+
+
+def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bool = True) -> str:
     included = [i for i in items if i["status"] == "included"]
     needs_review = [i for i in items if i["status"] == "needs_review"]
     flagged = [i for i in items if i["status"] == "flagged_retraction"]
@@ -37,6 +63,9 @@ def render_cycle_digest(cycle_row, items: list, queries_meta: dict) -> str:
     lines.append(f"- **Total new items surfaced:** {len(included)}")
     lines.append(f"- **Flagged for retraction/concern:** {len(flagged)}")
     lines.append(f"- **Needs human review:** {len(needs_review)}")
+    if not llm_used:
+        lines.append("- **Mode:** abstracts only — no AI summarization, extraction, or appraisal. "
+                     "Each item shows its identification info and the verbatim source abstract.")
     lines.append("")
     lines.append("---")
     lines.append("")

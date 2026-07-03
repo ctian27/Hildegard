@@ -50,7 +50,9 @@ pip install -r requirements.txt
 cp .env.example .env      # then fill in ANTHROPIC_API_KEY and (optional) NCBI_API_KEY
 ```
 
-Secrets live in `.env` (git-ignored). Never commit real keys.
+Secrets live in `.env` (git-ignored). Never commit real keys. The
+`ANTHROPIC_API_KEY` is only needed for AI summaries; the abstracts-only mode
+(`--no-llm` / unchecking "Use AI summaries") runs without any key.
 
 ## GUI (point-and-click)
 
@@ -77,12 +79,19 @@ python -m pipeline.gui
 ```
 
 A desktop window opens: tick the disease groups you want, choose the output
-format, optionally set a **date range** (From / To, `YYYY-MM-DD`) or toggle
-"ignore previously seen papers" / "dry run" / a max-items cap, then click
-**Run cycle**. Leave the dates blank to use each group's default rolling
-window. Output streams into the log pane. Uses Tkinter (bundled with Python —
-no extra install). Everything it does is also available on the command line
-below.
+format, optionally set a **date range** (From / To, `YYYY-MM-DD`), toggle
+**"Use AI summaries"** (see below), or toggle "ignore previously seen papers" /
+"dry run" / a max-items cap, then click **Run cycle**. Leave the dates blank to
+use each group's default rolling window. Output streams into the log pane. Uses
+Tkinter (bundled with Python — no extra install). Everything it does is also
+available on the command line below.
+
+**AI summaries vs. abstracts only.** By default ("Use AI summaries" checked)
+each paper is sent to Claude for structured extraction and appraisal — this
+needs an `ANTHROPIC_API_KEY`. Uncheck it (or pass `--no-llm`) to skip Claude
+entirely: the digest then lists each paper's identification info plus its
+verbatim PubMed abstract. That mode needs **no API key**, so the surveillance /
+retrieval function is usable on its own.
 
 ## Sharing this tool with someone else
 
@@ -109,6 +118,9 @@ python -m pipeline.main --group aml --dry-run
 
 # capped live run (limits Claude calls while validating):
 python -m pipeline.main --group aml --max-items 3
+
+# abstracts only -- no Claude, no API key needed (identification info + abstract):
+python -m pipeline.main --group aml --no-llm
 
 # full cycle for AML:
 python -m pipeline.main --group aml

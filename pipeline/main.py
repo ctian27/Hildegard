@@ -32,7 +32,11 @@ def parse_args():
                     help="Explicit end of the search window (YYYY-MM-DD, publication date). "
                          "Defaults to today.")
     p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip Claude calls.")
-    p.add_argument("--max-items", type=int, default=None, help="Cap LLM calls per group (smoke-testing).")
+    p.add_argument("--no-llm", action="store_true",
+                    help="Skip the Claude summarization/appraisal step entirely. The digest "
+                         "lists each paper's identification info + verbatim abstract. No "
+                         "Anthropic API key required.")
+    p.add_argument("--max-items", type=int, default=None, help="Cap items per group (LLM calls when AI is on).")
     p.add_argument("--ignore-seen", action="store_true",
                     help="Reprocess every retrieved item even if seen in a prior cycle "
                          "(regenerate the same window's digest from scratch instead of "
@@ -124,9 +128,29 @@ def recheck_retractions(conn, cycle_id: int, ncbi_api_key: str | None) -> list[d
     return newly_flagged
 
 
+def _abstract_only_output(rec: dict) -> tuple[str, dict]:
+    """Build the (status, stored-output) for a record when AI summarization is
+    off: identification info + verbatim abstract, retracted items flagged."""
+    record_type = "guideline" if any(
+        "Guideline" in (pt or "") for pt in rec.get("publication_types", [])
+    ) else "trial"
+    retracted = bool(rec.get("retracted"))
+    block = render.pubmed_record_to_markdown(rec)
+    if retracted:
+        note = rec.get("retraction_note") or "Retraction/expression of concern flagged on PubMed."
+        block = f"**FLAGGED — retraction / expression of concern.** {note}\n\n{block}"
+    status = "flagged_retraction" if retracted else "included"
+    out = {
+        "decision": status, "record_type": record_type, "markdown_block": block,
+        "appraisal_flags": [], "override_applied": None, "error": rec.get("retraction_note"),
+    }
+    return status, out
+
+
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
               client: anthropic.Anthropic | None, system_prompt: str, dry_run: bool,
-              max_items: int | None, queries_meta: dict, ignore_seen: bool = False) -> None:
+              max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
+              use_llm: bool = True) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
     if override:
@@ -162,6 +186,8 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
         identifiers = {"pmid": rec.get("pmid"), "doi": rec.get("doi"), "nct": None}
         if dry_run:
             status, llm_out = "needs_review", {"decision": None, "markdown_block": None, "error": "dry-run: LLM skipped"}
+        elif not use_llm:
+            status, llm_out = _abstract_only_output(rec)
         else:
             result = llm.process_item(client, system_prompt, group.key, "pubmed", rec, identifiers)
             status, llm_out = result["status"], result
@@ -188,12 +214,15 @@ def main():
     if not groups:
         sys.exit("No disease groups to run (none active; pass --group explicitly).")
 
+    # LLM summarization is used only when it's neither a dry run nor --no-llm.
+    use_llm = not args.dry_run and not args.no_llm
     anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not args.dry_run and not anthropic_key:
-        sys.exit("ANTHROPIC_API_KEY not set (in .env or environment). Use --dry-run to test retrieval only.")
+    if use_llm and not anthropic_key:
+        sys.exit("ANTHROPIC_API_KEY not set (in .env or environment). "
+                 "Use --no-llm for an abstracts-only digest, or --dry-run to test retrieval only.")
 
-    client = None if args.dry_run else anthropic.Anthropic(api_key=anthropic_key)
-    system_prompt = llm.load_system_prompt()
+    client = anthropic.Anthropic(api_key=anthropic_key) if use_llm else None
+    system_prompt = llm.load_system_prompt() if use_llm else ""
 
     today = date.today()
     run_date = today.isoformat()
@@ -215,7 +244,8 @@ def main():
     for group in groups:
         window_start, window_end = group_windows[group.key]
         run_group(conn, cycle_id, group, window_start, window_end, client, system_prompt,
-                   args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen)
+                   args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen,
+                   use_llm=use_llm)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
                  (__import__("json").dumps(queries_meta, default=str), cycle_id))
@@ -223,7 +253,7 @@ def main():
 
     cycle_row = conn.execute("SELECT * FROM cycles WHERE id = ?", (cycle_id,)).fetchone()
     items = db.get_items_for_cycle(conn, cycle_id)
-    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta)
+    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta, llm_used=use_llm)
 
     # The Markdown file backs the index and PDF conversion; write it whenever
     # md or both is requested, and always as the source for PDF.

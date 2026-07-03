@@ -32,7 +32,8 @@ def _validate_date(label: str, value: str) -> str:
 
 
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
-                   max_items: str = "", start_date: str = "", end_date: str = "") -> list[str]:
+                   max_items: str = "", start_date: str = "", end_date: str = "",
+                   use_llm: bool = True) -> list[str]:
     """Assemble the `python -m pipeline.main ...` argv from GUI selections.
     Raises ValueError on invalid input (no groups, non-numeric max_items,
     or a malformed / reversed date range)."""
@@ -42,6 +43,8 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
     for g in groups:
         cmd += ["--group", g]
     cmd += ["--format", fmt]
+    if not use_llm:
+        cmd.append("--no-llm")
     if ignore_seen:
         cmd.append("--ignore-seen")
     if dry_run:
@@ -107,9 +110,13 @@ class PipelineGUI:
             ttk.Radiobutton(opts, text=label, value=val, variable=self.format_var).grid(
                 row=0, column=1 + i, sticky="w", padx=6)
 
+        self.use_llm_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(opts, text="Use AI summaries (Claude) — uncheck for abstracts only (no API key needed)",
+                        variable=self.use_llm_var).grid(row=1, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+
         self.ignore_seen_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
-                        variable=self.ignore_seen_var).grid(row=1, column=0, columnspan=4, sticky="w", padx=6, pady=2)
+                        variable=self.ignore_seen_var).grid(row=5, column=0, columnspan=4, sticky="w", padx=6, pady=2)
 
         self.dry_run_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opts, text="Dry run (retrieval only, no Claude calls, free)",
@@ -172,6 +179,7 @@ class PipelineGUI:
                 self.ignore_seen_var.get(), self.dry_run_var.get(),
                 self.max_items_var.get(),
                 self.start_date_var.get(), self.end_date_var.get(),
+                use_llm=self.use_llm_var.get(),
             )
         except ValueError as e:
             self._append(f"{e}\n")
