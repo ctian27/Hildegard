@@ -198,7 +198,9 @@ Because un-indexed papers have no publication-type tags, the fresh scan
 restricts to **phase II/III trials and guidelines** by title/abstract wording
 (e.g. "phase 3", "randomized", "guideline") — this is the default and cuts most
 non-trial noise. Pass `--recent-all` (or untick the GUI sub-option) to include
-every recent paper instead. Disable the whole scan with `--no-fresh-scan`.
+every recent paper instead. Either way, **case reports/series and
+preclinical/animal studies are filtered out** (by publication type + title).
+Disable the whole scan with `--no-fresh-scan`.
 
 Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `follicular_lymphoma`, `mantle_cell_lymphoma`, `marginal_zone_lymphoma`,

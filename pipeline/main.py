@@ -171,9 +171,11 @@ def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
     es = pubmed.esearch(term, window_start.replace("-", "/"), window_end.replace("-", "/"), api_key=ncbi_key)
     records = pubmed.efetch(es["pmids"], api_key=ncbi_key)
     new = records if ignore_seen else dedup.filter_new_pubmed(conn, records)
-    # Trim obvious non-primary noise when a fresh record already carries types.
+    # Trim obvious non-primary noise (editorials/letters/reviews when a record
+    # carries those types) plus case reports/series and preclinical/animal work.
     kept = [r for r in new
-            if not (set(r.get("publication_types") or []) & pubmed.NON_PRIMARY_PUB_TYPES)]
+            if not (set(r.get("publication_types") or []) & pubmed.NON_PRIMARY_PUB_TYPES)
+            and pubmed.fresh_exclusion_reason(r) is None]
     meta[meta_key] = {"term": term, "pubmed_count": es["count"], "kept": len(kept)}
     for rec in kept:
         retracted = bool(rec.get("retracted"))

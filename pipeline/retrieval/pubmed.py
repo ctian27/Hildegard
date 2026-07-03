@@ -94,6 +94,33 @@ NON_PRIMARY_PUB_TYPES = frozenset({
     "Expression of Concern", "Review", "Systematic Review",
 })
 
+# Extra exclusions for the fresh scan: case reports/series and preclinical /
+# animal work (the tool never wants these). Matched on publication types +
+# TITLE (not abstract) to avoid dropping a real trial whose abstract merely
+# mentions a translational/lab sub-study.
+_CASE_REPORT_PUB_TYPES = frozenset({"Case Reports"})
+_CASE_REPORT_TITLE = (
+    "case report", "case series", "a case of", "case study", "case studies",
+    "case of ", ": a case", "report of a case",
+)
+_PRECLINICAL_TITLE = (
+    "in vitro", "in vivo", "preclinical", "pre-clinical", "xenograft", "murine",
+    "mouse model", "mouse models", "in mice", "in rats", "rat model", "cell line",
+    "cell lines", "organoid", "organoids", "zebrafish", "patient-derived xenograft",
+)
+
+
+def fresh_exclusion_reason(rec: dict) -> str | None:
+    """Return an exclusion reason if a fresh-scan record looks like a case
+    report/series or preclinical/animal study; else None."""
+    types = set(rec.get("publication_types") or [])
+    title = (rec.get("title") or "").lower()
+    if types & _CASE_REPORT_PUB_TYPES or any(m in title for m in _CASE_REPORT_TITLE):
+        return "case report/series"
+    if any(m in title for m in _PRECLINICAL_TITLE):
+        return "preclinical/animal"
+    return None
+
 
 def esearch(term: str, mindate: str, maxdate: str, api_key: str | None = None,
             retmax: int = 300) -> dict:
