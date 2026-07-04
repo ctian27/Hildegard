@@ -14,3 +14,5 @@ dist/
 # personal / scratch notes, not part of the pipeline
 *.rtf
 Random Text Files/
+# generated digests are per-user output, not for the public repo
+digests/
