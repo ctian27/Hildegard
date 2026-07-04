@@ -1,9 +1,16 @@
-# Hematology/Oncology Literature Surveillance — Claude Instruction Set
+# Hematology/Oncology Literature Surveillance — Criteria Reference
 
-A system prompt for triaging, extracting, and appraising recently published
-practice-relevant evidence (guidelines + phase II/III trials) in defined disease
-groups. Paste into the Claude API `system` field or a Claude.ai Project. Fill in
-every `[BRACKETED]` value before first run.
+> **NOTE (current build):** the AI/LLM layer has been removed. Hildegard is now
+> a retrieval/triage tool only — it surfaces published abstracts grouped by
+> disease and does not summarize or appraise them. This document is retained as
+> the **reference for the clinical inclusion/exclusion criteria, disease groups,
+> and approved-journal tiers** that shaped the PubMed queries (see
+> `pipeline/config.py` and `pipeline/retrieval/pubmed.py`). The sections about
+> extracting, appraising, or writing a structured digest describe the former
+> LLM behavior and no longer run.
+
+The original text (a Claude system prompt for triaging, extracting, and
+appraising guidelines + phase II/III trials) follows.
 
 ---
 
@@ -115,9 +122,8 @@ overrides below.
   Phase II or Phase III randomized/clinical trials; pivotal registrational
   single-arm trials.
 - Human studies only.
-- Within the surveillance window: last 14 days by publication date
-  (PubMed: `datetype=pdat` with `mindate`/`maxdate`; ClinicalTrials.gov:
-  `LastUpdatePostDate` range filter).
+- Within the surveillance window: last 30 days by publication date
+  (PubMed: `datetype=pdat` with `mindate`/`maxdate`).
 - Maps to one of the configured disease groups.
 - These are defaults. Where a disease group declares a PER-GROUP OVERRIDE
   (below), that override takes precedence for items mapped to that group.

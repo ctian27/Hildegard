@@ -1,7 +1,7 @@
-"""Markdown digest renderer, following the paired system prompt's OUTPUT
-FORMAT section. LLM calls happen per-item (see llm.py); this module is
-responsible for the cycle-level assembly: header, grouping, needs-review
-and flagged-retraction sections, and the reproducibility footer.
+"""Markdown digest renderer: cycle-level assembly of the retrieved papers --
+header, grouping by disease, the flagged-retraction section, and the
+reproducibility footer. Each item is shown as identification info + the
+verbatim PubMed abstract.
 """
 
 import json
@@ -11,9 +11,10 @@ from datetime import datetime
 from . import config
 
 CLOSING_LINE = (
-    '*"Surveillance aid only. Verify every item against the primary source and '
-    'apply clinical judgment and institutional protocols before any clinical use. '
-    'Automated extraction can misread numbers, endpoints, and populations."*'
+    '*"Surveillance aid only. This is a retrieval/triage tool that surfaces '
+    'published abstracts; it does not interpret or appraise them. Verify every '
+    'item against the primary source and apply clinical judgment and '
+    'institutional protocols before any clinical use."*'
 )
 
 
@@ -48,7 +49,7 @@ def pubmed_record_to_markdown(rec: dict) -> str:
     return "\n".join(lines)
 
 
-def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bool = True) -> str:
+def render_cycle_digest(cycle_row, items: list, queries_meta: dict) -> str:
     included = [i for i in items if i["status"] == "included"]
     needs_review = [i for i in items if i["status"] == "needs_review"]
     flagged = [i for i in items if i["status"] == "flagged_retraction"]
@@ -67,11 +68,8 @@ def render_cycle_digest(cycle_row, items: list, queries_meta: dict, llm_used: bo
     lines.append(f"- **Needs human review:** {len(needs_review)}")
     if recent_t1 or recent_t2:
         lines.append(f"- **Recent, not yet indexed:** {len(recent_t1)} Tier 1, {len(recent_t2)} Tier 2 "
-                     "— reported separately in the `recent_tier1` / `recent_tier2` files (identification "
-                     "info + abstract; not AI-appraised).")
-    if not llm_used:
-        lines.append("- **Mode:** abstracts only — no AI summarization, extraction, or appraisal. "
-                     "Each item shows its identification info and the verbatim source abstract.")
+                     "— reported separately in the `recent_tier1` / `recent_tier2` files.")
+    lines.append("- Each item shows its identification info and the verbatim source abstract.")
     lines.append("")
     lines.append("---")
     lines.append("")

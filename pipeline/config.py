@@ -178,7 +178,7 @@ class DiseaseGroup:
     # surfaces published PubMed papers only). Retained as documentation of the
     # condition string, in case registry retrieval is re-added later.
     ctgov_condition: str
-    window_days: int = 14
+    window_days: int = 30
     active: bool = False
     mesh_verified: bool = False
 
@@ -191,7 +191,7 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
         mesh_terms=["Leukemia, Myeloid, Acute"],
         journals=AML_JOURNALS,
         ctgov_condition="acute myeloid leukemia",
-        window_days=14,
+        window_days=30,
         active=True,
         mesh_verified=True,  # confirmed via db=mesh esearch, 2026-07-01
     ),
@@ -283,15 +283,11 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
 ACTIVE_GROUPS = [g for g in DISEASE_GROUPS.values() if g.active]
 
 # Bundled (read-only) resources.
-SYSTEM_PROMPT_PATH = os.path.join(BUNDLE_DIR, "heme_onc_literature_surveillance_prompt.md")
 ICON_PATH = os.path.join(BUNDLE_DIR, "assets", "hildegard_icon.png")
 
 # User-writable outputs / secrets.
 DB_PATH = os.path.join(DATA_HOME, "data", "surveillance.db")
 DIGESTS_DIR = os.path.join(DATA_HOME, "digests")
 DOTENV_PATH = os.path.join(DATA_HOME, ".env")
-
-ANTHROPIC_MODEL = "claude-haiku-4-5-20251001"
-ANTHROPIC_MAX_TOKENS = 6000
 
 NCBI_EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"

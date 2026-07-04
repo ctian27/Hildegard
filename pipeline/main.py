@@ -11,10 +11,9 @@ import os
 import sys
 from datetime import date, timedelta
 
-import anthropic
 from dotenv import load_dotenv
 
-from . import config, db, dedup, llm, render
+from . import config, db, dedup, render
 from .retrieval import pubmed
 
 
@@ -31,12 +30,8 @@ def parse_args(argv=None):
     p.add_argument("--end-date", default=None,
                     help="Explicit end of the search window (YYYY-MM-DD, publication date). "
                          "Defaults to today.")
-    p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip Claude calls.")
-    p.add_argument("--no-llm", action="store_true",
-                    help="Skip the Claude summarization/appraisal step entirely. The digest "
-                         "lists each paper's identification info + verbatim abstract. No "
-                         "Anthropic API key required.")
-    p.add_argument("--max-items", type=int, default=None, help="Cap items per group (LLM calls when AI is on).")
+    p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip building/writing item blocks.")
+    p.add_argument("--max-items", type=int, default=None, help="Cap items rendered per group (for quick tests).")
     p.add_argument("--no-fresh-scan", action="store_true",
                     help="Disable the supplementary scan for recent, not-yet-MeSH-indexed "
                          "papers in the approved journals. That scan (on by default) catches "
@@ -194,10 +189,8 @@ def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
 
 
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
-              client: anthropic.Anthropic | None, system_prompt: str, dry_run: bool,
-              max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
-              use_llm: bool = True, fresh_scan: bool = True,
-              fresh_trials_only: bool = True) -> None:
+              dry_run: bool, max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
+              fresh_scan: bool = True, fresh_trials_only: bool = True) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
     if override:
@@ -230,17 +223,13 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
         new_pm = new_pm[:max_items]
 
     for rec in new_pm:
-        identifiers = {"pmid": rec.get("pmid"), "doi": rec.get("doi"), "nct": None}
         if dry_run:
-            status, llm_out = "needs_review", {"decision": None, "markdown_block": None, "error": "dry-run: LLM skipped"}
-        elif not use_llm:
-            status, llm_out = _abstract_only_output(rec)
+            status, out = "needs_review", {"decision": None, "markdown_block": None, "error": "dry-run: not rendered"}
         else:
-            result = llm.process_item(client, system_prompt, group.key, "pubmed", rec, identifiers)
-            status, llm_out = result["status"], result
+            status, out = _abstract_only_output(rec)
         db.insert_item(conn, cycle_id, group.key, "pubmed", rec.get("pmid"), rec.get("doi"), None,
                         rec.get("title") or "", rec.get("journal"), rec.get("pub_date"),
-                        llm_out.get("record_type"), rec, status, llm_out)
+                        out.get("record_type"), rec, status, out)
         dedup.mark_pubmed_seen(conn, cycle_id, group.key, rec)
 
     if not dry_run:
@@ -280,16 +269,6 @@ def main(argv=None):
     os.makedirs(os.path.dirname(args.db_path) or ".", exist_ok=True)
     os.makedirs(args.digests_dir, exist_ok=True)
 
-    # LLM summarization is used only when it's neither a dry run nor --no-llm.
-    use_llm = not args.dry_run and not args.no_llm
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
-    if use_llm and not anthropic_key:
-        sys.exit("ANTHROPIC_API_KEY not set (in .env or environment). "
-                 "Use --no-llm for an abstracts-only digest, or --dry-run to test retrieval only.")
-
-    client = anthropic.Anthropic(api_key=anthropic_key) if use_llm else None
-    system_prompt = llm.load_system_prompt() if use_llm else ""
-
     today = date.today()
     run_date = today.isoformat()
 
@@ -309,10 +288,9 @@ def main(argv=None):
     queries_meta: dict = {}
     for group in groups:
         window_start, window_end = group_windows[group.key]
-        run_group(conn, cycle_id, group, window_start, window_end, client, system_prompt,
+        run_group(conn, cycle_id, group, window_start, window_end,
                    args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen,
-                   use_llm=use_llm, fresh_scan=not args.no_fresh_scan,
-                   fresh_trials_only=not args.recent_all)
+                   fresh_scan=not args.no_fresh_scan, fresh_trials_only=not args.recent_all)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",
                  (__import__("json").dumps(queries_meta, default=str), cycle_id))
@@ -323,7 +301,7 @@ def main(argv=None):
     rd = cycle_row["run_date"]
 
     # Main verified digest.
-    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta, llm_used=use_llm)
+    digest_md = render.render_cycle_digest(cycle_row, items, queries_meta)
     for p in render.write_outputs(args.digests_dir, cycle_row, f"{rd}_cycle", digest_md,
                                    args.format, index_label=f"{rd} cycle"):
         print(f"Digest written to {p}")

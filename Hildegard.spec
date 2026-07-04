@@ -5,22 +5,17 @@
 # One entry point (app.py) serves both the GUI and, via `--pipeline`, a cycle.
 
 import sys
-from PyInstaller.utils.hooks import collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_submodules
 
 datas = [
-    ("heme_onc_literature_surveillance_prompt.md", "."),
     ("assets/hildegard_icon.png", "assets"),
 ]
 
-# anthropic reads its own version via importlib.metadata at import time, and
-# pydantic/xhtml2pdf pull in modules PyInstaller doesn't always trace.
-datas += copy_metadata("anthropic")
-
+# xhtml2pdf/reportlab pull in modules PyInstaller doesn't always trace.
 hiddenimports = (
-    collect_submodules("anthropic")
-    + collect_submodules("xhtml2pdf")
+    collect_submodules("xhtml2pdf")
     + collect_submodules("reportlab")
-    + ["pydantic", "pydantic_core", "markdown"]
+    + ["markdown"]
 )
 
 block_cipher = None

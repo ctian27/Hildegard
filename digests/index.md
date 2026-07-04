@@ -4,3 +4,29 @@
 - [2026-07-02](2026-07-02_cycle.md) -- window 2026-06-02 to 2026-07-02
 - [2026-07-02](2026-07-02_cycle.md) -- window 2026-06-18 to 2026-07-02
 - [2026-07-02](2026-07-02_cycle.md) -- window 2026-04-01 to 2026-07-02
+- [2026-07-03](2026-07-03_cycle.md) -- window 2026-05-01 to 2026-07-01
+- [2026-07-03 cycle](2026-07-03_cycle.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 1 (12)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (12)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 1 (16)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (13)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 1 (4)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (10)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 1 (1)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (9)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 cycle](2026-07-03_cycle.pdf) -- window 2026-05-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (11)](2026-07-03_recent_tier1.pdf) -- window 2026-05-01 to 2026-07-03
+- [2026-07-03 recent Tier 2 (82)](2026-07-03_recent_tier2.pdf) -- window 2026-05-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (6)](2026-07-03_recent_tier1.pdf) -- window 2026-05-01 to 2026-07-03
+- [2026-07-03 recent Tier 2 (6)](2026-07-03_recent_tier2.pdf) -- window 2026-05-01 to 2026-07-03
+- [2026-07-03 cycle](2026-07-03_cycle.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (3)](2026-07-03_recent_tier1.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 2 (5)](2026-07-03_recent_tier2.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (43)](2026-07-03_recent_tier1.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 2 (39)](2026-07-03_recent_tier2.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (11)](2026-07-03_recent_tier1.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 2 (13)](2026-07-03_recent_tier2.pdf) -- window 2026-03-01 to 2026-07-03
+- [2026-07-03 recent Tier 1 (6)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (6)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 1 (2)](2026-07-03_recent_tier1.pdf) -- window 2026-06-19 to 2026-07-03
+- [2026-07-03 recent Tier 2 (3)](2026-07-03_recent_tier2.pdf) -- window 2026-06-19 to 2026-07-03

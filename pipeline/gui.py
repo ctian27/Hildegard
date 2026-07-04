@@ -58,8 +58,7 @@ def _pipeline_prefix() -> list[str]:
 
 def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
                    max_items: str = "", start_date: str = "", end_date: str = "",
-                   use_llm: bool = True, fresh_scan: bool = True,
-                   fresh_trials_only: bool = True) -> list[str]:
+                   fresh_scan: bool = True, fresh_trials_only: bool = True) -> list[str]:
     """Assemble the pipeline argv from GUI selections. Raises ValueError on
     invalid input (no groups, non-numeric max_items, malformed/reversed dates)."""
     if not groups:
@@ -68,8 +67,6 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
     for g in groups:
         cmd += ["--group", g]
     cmd += ["--format", fmt]
-    if not use_llm:
-        cmd.append("--no-llm")
     if not fresh_scan:
         cmd.append("--no-fresh-scan")
     elif not fresh_trials_only:
@@ -154,10 +151,6 @@ class PipelineGUI:
             ttk.Radiobutton(opts, text=label, value=val, variable=self.format_var).grid(
                 row=0, column=1 + i, sticky="w", padx=6)
 
-        self.use_llm_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opts, text="Use AI summaries (Claude) — uncheck for abstracts only (no API key needed)",
-                        variable=self.use_llm_var).grid(row=1, column=0, columnspan=4, sticky="w", padx=6, pady=2)
-
         self.fresh_scan_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(opts, text="Catch recent papers not yet indexed by PubMed (separate Tier 1 / Tier 2 files)",
                         variable=self.fresh_scan_var).grid(row=8, column=0, columnspan=4, sticky="w", padx=6, pady=2)
@@ -190,14 +183,6 @@ class PipelineGUI:
         ttk.Entry(date_row, textvariable=self.end_date_var, width=12).pack(side="left", padx=2)
         ttk.Label(opts, text=f"Leave blank to use the default window: {default_window_note()}.",
                   foreground="#666").grid(row=5, column=0, columnspan=4, sticky="w", padx=6, pady=(0, 2))
-
-        # Optional Anthropic API key (for AI summaries). Pre-filled from the
-        # environment / .env if already set. Used only for the current run.
-        ttk.Label(opts, text="Anthropic API key (only for AI summaries):").grid(
-            row=7, column=0, sticky="w", padx=6, pady=2)
-        self.api_key_var = tk.StringVar(value=os.environ.get("ANTHROPIC_API_KEY", ""))
-        ttk.Entry(opts, textvariable=self.api_key_var, width=42, show="•").grid(
-            row=7, column=1, columnspan=3, sticky="w", padx=6)
 
         # Run / stop controls
         ctrl = ttk.Frame(self.root)
@@ -260,7 +245,6 @@ class PipelineGUI:
                 self.ignore_seen_var.get(), self.dry_run_var.get(),
                 self.max_items_var.get(),
                 self.start_date_var.get(), self.end_date_var.get(),
-                use_llm=self.use_llm_var.get(),
                 fresh_scan=self.fresh_scan_var.get(),
                 fresh_trials_only=self.fresh_trials_only_var.get(),
             )
@@ -268,26 +252,19 @@ class PipelineGUI:
             self._append(f"{e}\n")
             return
 
-        # Pass the API key (if typed) to the run via the environment, so it is
-        # never written to disk or shown in the echoed command line.
-        env = dict(os.environ)
-        key = self.api_key_var.get().strip()
-        if key:
-            env["ANTHROPIC_API_KEY"] = key
-
         self._clear_log()
         self._append("$ " + " ".join(cmd) + "\n\n")
         self.run_btn.config(state="disabled")
         self.stop_btn.config(state="normal")
         self.status_var.set("Running...")
 
-        threading.Thread(target=self._worker, args=(cmd, env), daemon=True).start()
+        threading.Thread(target=self._worker, args=(cmd,), daemon=True).start()
 
-    def _worker(self, cmd: list[str], env: dict):
+    def _worker(self, cmd: list[str]):
         try:
             os.makedirs(config.DATA_HOME, exist_ok=True)
             self.proc = subprocess.Popen(
-                cmd, cwd=config.DATA_HOME, env=env,
+                cmd, cwd=config.DATA_HOME,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
             )
@@ -338,8 +315,8 @@ class PipelineGUI:
 
 
 def main():
-    # Load .env from the writable data home so the API-key field pre-fills and
-    # the environment is consistent with what a run will see.
+    # Load .env from the writable data home (optional NCBI_API_KEY for higher
+    # PubMed rate limits) so the GUI process and its runs share the environment.
     try:
         from dotenv import load_dotenv
         load_dotenv(config.DOTENV_PATH)
