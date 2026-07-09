@@ -4,17 +4,23 @@ Last updated during a **post-v1.2 maintenance session (2026-07-08)**, on top of
 v1.2 (commit `e0336e1`). Read this first; it captures non-obvious context that
 isn't derivable from the code alone.
 
-**This maintenance session's changes (no new version tag yet):**
-- **`digests/` untracked + git-ignored** (commit `5e67ecd`, pushed) — per-user
-  output, not for the public repo. Files stay on disk; only removed from git.
-- **Source-journals reference added** (commit `89ffc84`, pushed) — new
+**This maintenance session's changes — all shipped as release `v1.2.1`:**
+- **`digests/` untracked + git-ignored** (commit `5e67ecd`) — per-user output,
+  not for the public repo. Files stay on disk; only removed from git.
+- **Source-journals reference added** (commit `89ffc84`) — new
   `pipeline/journals_reference.py` generates `Hildegard-Journals.{md,pdf}` (a
   tiered list of every searched journal) from `config.py`; regenerate with
   `python -m pipeline.journals_reference`. Page-breaks per tier so each table
   renders full-size (avoids xhtml2pdf keep-in-frame shrink).
-- **Dry-run feature fully removed** — committed **locally only, NOT yet pushed**
-  (user is testing first). If this is a fresh session and the change looks
-  present locally but absent on GitHub, that's why. See §3.
+- **Dry-run feature fully removed** (commit `184ef12`). See §3.
+- **App bundle version bumped** to `1.2.1` in `Hildegard.spec`
+  (`CFBundleShortVersionString`, was stuck at `1.0`; commit `6e1aef7`).
+- **CI actions bumped to Node 24 majors** (commit `50ad3d8`) — checkout v4→v7,
+  setup-python v5→v6, upload-artifact v4→v7, action-gh-release v2→v3; clears the
+  Node 20 deprecation warning. Verified via a `workflow_dispatch` run (both
+  jobs green, no deprecation annotations).
+- **Released `v1.2.1`** — tag pushed, CI built + attached
+  `Hildegard-macOS.zip` + `Hildegard-Windows.zip` to the GitHub Release.
 
 ## 1. What this project is
 
@@ -222,7 +228,6 @@ Note: `git push` may need `git config http.postBuffer 524288000` (binary assets)
 ## 8. Possible next steps (raised, not done)
 
 - Re-surface fresh-scan papers for the strict digest once they get indexed.
-- Bump deprecated GitHub Actions (Node 20 warning) to newer versions.
 - Society-guideline page scraping (NCCN/ASCO/ASH/ESMO); Europe PMC full text;
   scheduling (cron/Actions). Solid-tumor `ctgov_condition` strings were never
   verified (CT.gov is gone, so moot unless registry retrieval returns).
