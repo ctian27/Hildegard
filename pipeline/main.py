@@ -2,8 +2,7 @@
 
 Usage:
     python -m pipeline.main --group aml
-    python -m pipeline.main --group aml --dry-run          # retrieval+dedup only, no Claude calls
-    python -m pipeline.main --group aml --max-items 3       # cap LLM calls, for smoke-testing
+    python -m pipeline.main --group aml --max-items 3       # cap items, for smoke-testing
 """
 
 import argparse
@@ -30,7 +29,6 @@ def parse_args(argv=None):
     p.add_argument("--end-date", default=None,
                     help="Explicit end of the search window (YYYY-MM-DD, publication date). "
                          "Defaults to today.")
-    p.add_argument("--dry-run", action="store_true", help="Retrieve + dedup only; skip building/writing item blocks.")
     p.add_argument("--max-items", type=int, default=None, help="Cap items rendered per group (for quick tests).")
     p.add_argument("--no-fresh-scan", action="store_true",
                     help="Disable the supplementary scan for recent, not-yet-MeSH-indexed "
@@ -189,7 +187,7 @@ def _run_fresh_scan(conn, cycle_id: int, group: config.DiseaseGroup,
 
 
 def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str, window_end: str,
-              dry_run: bool, max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
+              max_items: int | None, queries_meta: dict, ignore_seen: bool = False,
               fresh_scan: bool = True, fresh_trials_only: bool = True) -> None:
     override = config.PER_GROUP_OVERRIDES.get(group.key)
     pub_types = list(config.DEFAULT_PUBLICATION_TYPES)
@@ -223,30 +221,26 @@ def run_group(conn, cycle_id: int, group: config.DiseaseGroup, window_start: str
         new_pm = new_pm[:max_items]
 
     for rec in new_pm:
-        if dry_run:
-            status, out = "needs_review", {"decision": None, "markdown_block": None, "error": "dry-run: not rendered"}
-        else:
-            status, out = _abstract_only_output(rec)
+        status, out = _abstract_only_output(rec)
         db.insert_item(conn, cycle_id, group.key, "pubmed", rec.get("pmid"), rec.get("doi"), None,
                         rec.get("title") or "", rec.get("journal"), rec.get("pub_date"),
                         out.get("record_type"), rec, status, out)
         dedup.mark_pubmed_seen(conn, cycle_id, group.key, rec)
 
-    if not dry_run:
-        retraction_items = recheck_retractions(conn, cycle_id, ncbi_key)
-        for item in retraction_items:
-            if item["disease_group"] != group.key:
-                continue
-            db.insert_item(conn, cycle_id, item["disease_group"], item["source_type"],
-                            item["pmid"], item["doi"], item["nct"], item["title"], item["journal"],
-                            item["pub_date"], item["record_type"], item["raw_payload"],
-                            item["status"], item["llm_output"])
+    retraction_items = recheck_retractions(conn, cycle_id, ncbi_key)
+    for item in retraction_items:
+        if item["disease_group"] != group.key:
+            continue
+        db.insert_item(conn, cycle_id, item["disease_group"], item["source_type"],
+                        item["pmid"], item["doi"], item["nct"], item["title"], item["journal"],
+                        item["pub_date"], item["record_type"], item["raw_payload"],
+                        item["status"], item["llm_output"])
 
     # Supplementary "fresh scan": recent, possibly not-yet-MeSH-indexed papers
     # the strict query misses (PubMed indexing lag). Tier 1 and Tier 2 are
     # scanned separately so they can be reported in separate files. Runs after
     # the strict pass so already-surfaced papers are deduped out.
-    if fresh_scan and not dry_run:
+    if fresh_scan:
         tier2_journals = [j for j in group.journals if j.tier == 2]
         f1 = _run_fresh_scan(conn, cycle_id, group, window_start, window_end, ncbi_key,
                               ignore_seen, config.TIER1_JOURNALS, "recent_tier1",
@@ -289,7 +283,7 @@ def main(argv=None):
     for group in groups:
         window_start, window_end = group_windows[group.key]
         run_group(conn, cycle_id, group, window_start, window_end,
-                   args.dry_run, args.max_items, queries_meta, ignore_seen=args.ignore_seen,
+                   args.max_items, queries_meta, ignore_seen=args.ignore_seen,
                    fresh_scan=not args.no_fresh_scan, fresh_trials_only=not args.recent_all)
 
     conn.execute("UPDATE cycles SET queries_json = ? WHERE id = ?",

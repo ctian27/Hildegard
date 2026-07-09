@@ -56,7 +56,7 @@ def _pipeline_prefix() -> list[str]:
     return [sys.executable, "-m", "pipeline.main"]
 
 
-def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
+def build_command(groups: list[str], fmt: str, ignore_seen: bool,
                    max_items: str = "", start_date: str = "", end_date: str = "",
                    fresh_scan: bool = True, fresh_trials_only: bool = True) -> list[str]:
     """Assemble the pipeline argv from GUI selections. Raises ValueError on
@@ -73,8 +73,6 @@ def build_command(groups: list[str], fmt: str, ignore_seen: bool, dry_run: bool,
         cmd.append("--recent-all")
     if ignore_seen:
         cmd.append("--ignore-seen")
-    if dry_run:
-        cmd.append("--dry-run")
     max_items = (max_items or "").strip()
     if max_items:
         if not max_items.isdigit():
@@ -162,10 +160,6 @@ class PipelineGUI:
         ttk.Checkbutton(opts, text="Ignore previously seen papers (regenerate full window)",
                         variable=self.ignore_seen_var).grid(row=6, column=0, columnspan=4, sticky="w", padx=6, pady=2)
 
-        self.dry_run_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opts, text="Dry run (retrieval only, no Claude calls, free)",
-                        variable=self.dry_run_var).grid(row=2, column=0, columnspan=4, sticky="w", padx=6, pady=2)
-
         ttk.Label(opts, text="Max items per group (blank = no cap):").grid(row=3, column=0, sticky="w", padx=6, pady=2)
         self.max_items_var = tk.StringVar(value="")
         ttk.Entry(opts, textvariable=self.max_items_var, width=8).grid(row=3, column=1, sticky="w", padx=6)
@@ -242,7 +236,7 @@ class PipelineGUI:
         try:
             cmd = build_command(
                 self._selected_groups(), self.format_var.get(),
-                self.ignore_seen_var.get(), self.dry_run_var.get(),
+                self.ignore_seen_var.get(),
                 self.max_items_var.get(),
                 self.start_date_var.get(), self.end_date_var.get(),
                 fresh_scan=self.fresh_scan_var.get(),

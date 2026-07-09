@@ -1,7 +1,20 @@
 # Hildegard — Handoff for a future Claude Code session
 
-Last updated after **v1.2** (commit `e0336e1`). Read this first; it captures
-non-obvious context that isn't derivable from the code alone.
+Last updated during a **post-v1.2 maintenance session (2026-07-08)**, on top of
+v1.2 (commit `e0336e1`). Read this first; it captures non-obvious context that
+isn't derivable from the code alone.
+
+**This maintenance session's changes (no new version tag yet):**
+- **`digests/` untracked + git-ignored** (commit `5e67ecd`, pushed) — per-user
+  output, not for the public repo. Files stay on disk; only removed from git.
+- **Source-journals reference added** (commit `89ffc84`, pushed) — new
+  `pipeline/journals_reference.py` generates `Hildegard-Journals.{md,pdf}` (a
+  tiered list of every searched journal) from `config.py`; regenerate with
+  `python -m pipeline.journals_reference`. Page-breaks per tier so each table
+  renders full-size (avoids xhtml2pdf keep-in-frame shrink).
+- **Dry-run feature fully removed** — committed **locally only, NOT yet pushed**
+  (user is testing first). If this is a fresh session and the change looks
+  present locally but absent on GitHub, that's why. See §3.
 
 ## 1. What this project is
 
@@ -47,6 +60,14 @@ prompts). Override with env `HILDEGARD_HOME`. Digests go to
 - **PubMed only; ClinicalTrials.gov removed.** User wanted published papers
   only. `pipeline/retrieval/ctgov.py` was deleted (early on). `ctgov_condition`
   remains as vestigial per-group metadata in config.
+- **Dry-run mode removed (post-v1.2 maintenance).** The `--dry-run` flag / GUI
+  checkbox was vestigial once the AI layer was gone — its label still said "no
+  Claude calls, free," but there are no Claude calls anymore, so it only meant
+  "retrieve+dedup, skip rendering." Removed entirely: the GUI checkbox +
+  `dry_run_var`, the `build_command` `dry_run` param, the `--dry-run` argparse
+  flag, the `run_group` `dry_run` param, and its four branches (item stub,
+  retraction-recheck gate, fresh-scan gate). Retraction recheck + fresh scan now
+  always run (they always did in real runs). README de-referenced too.
 - **AI/LLM layer removed (v1.2).** User found Claude summaries uneven in quality
   and the `anthropic`→`pydantic`/`pydantic_core` dependency caused install
   complexity + the arm64/x86_64 crash (see §5). Removal was low-risk because an
@@ -99,9 +120,13 @@ prompts). Override with env `HILDEGARD_HOME`. Digests go to
   (`markdown` → HTML → `xhtml2pdf`); `write_outputs`, `update_index`,
   `pubmed_record_to_markdown` (the abstract block).
 - `pipeline/main.py` — orchestrator + argparse + `_run_fresh_scan` +
-  `_abstract_only_output` + `resolve_window`. `main(argv=None)`.
+  `_abstract_only_output` + `resolve_window`. `main(argv=None)`. No `dry_run`
+  anymore (removed post-v1.2; see §3).
 - `pipeline/gui.py` — Tkinter GUI; `build_command` (pure, testable),
-  `default_window_note`. No AI checkbox / API-key field anymore.
+  `default_window_note`. No AI checkbox / API-key field, and no dry-run checkbox.
+- `pipeline/journals_reference.py` — generates the tiered source-journals
+  reference doc (`Hildegard-Journals.{md,pdf}`) from `config.py`, reusing
+  `render.markdown_to_pdf`. Run: `python -m pipeline.journals_reference`.
 - `pipeline/retrieval/ctgov.py` — **deleted**. `pipeline/llm.py` — **deleted**.
 
 **Packaging / launchers:**

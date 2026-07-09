@@ -108,7 +108,7 @@ python -m pipeline.gui
 
 A desktop window opens: tick the disease groups you want, choose the output
 format, optionally set a **date range** (From / To, `YYYY-MM-DD`), or toggle
-"ignore previously seen papers" / "dry run" / a max-items cap, then click **Run
+"ignore previously seen papers" / a max-items cap, then click **Run
 cycle**. Leave the dates blank to use each group's default rolling window.
 Output streams into the log pane. Uses Tkinter (bundled with Python — no extra
 install). Everything it does is also available on the command line below.
@@ -132,9 +132,6 @@ The recipient needs Python 3 installed (python.org). No API key is required.
 ## Run (command line)
 
 ```bash
-# retrieval + dedup only, don't render item blocks (quick smoke test):
-python -m pipeline.main --group aml --dry-run
-
 # cap the number of items rendered per group (quick test):
 python -m pipeline.main --group aml --max-items 3
 
@@ -197,8 +194,8 @@ Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `thyroid`.
 
 Note: a full default run queries all 26 groups (plus their fresh scans), so it
-makes a lot of PubMed calls and can take a while. Use `--dry-run` first to see
-item counts, or run a single group at a time.
+makes a lot of PubMed calls and can take a while. Use `--max-items` or run a
+single group at a time to keep test runs quick.
 
 Output per cycle: `digests/<date>_cycle.pdf` and `digests/<date>_cycle.md`
 (the Markdown is linked from `digests/index.md`). The PDF renders each
