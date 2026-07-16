@@ -58,7 +58,7 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "Hildegard",
             "CFBundleDisplayName": "Hildegard",
-            "CFBundleShortVersionString": "1.2.1",
+            "CFBundleShortVersionString": "1.2.2",
             "NSHighResolutionCapable": True,
             "LSMinimumSystemVersion": "10.13",
         },

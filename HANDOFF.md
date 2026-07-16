@@ -22,14 +22,15 @@ isn't derivable from the code alone.
 - **Released `v1.2.1`** — tag pushed, CI built + attached
   `Hildegard-macOS.zip` + `Hildegard-Windows.zip` to the GitHub Release.
 
-**After `v1.2.1` (not yet released):**
+**Released as `v1.2.2`:**
 - **T-Cell Lymphoma group added** (`tcell_lymphoma`, key/label in `config.py`)
   — MeSH `Lymphoma, T-Cell` (umbrella heading; a PubMed MeSH search explodes it
   to peripheral/cutaneous subtypes), verified live 2026-07-16; journals =
   `AML_JOURNALS`. Brings the total to **27 groups (16 hematologic)**. README +
   config counts updated. The GUI picks it up automatically (it iterates
-  `config.ACTIVE_GROUPS`). Config-only change; needs a new version tag to reach
-  the public downloadable apps.
+  `config.ACTIVE_GROUPS`).
+- **App bundle version bumped** to `1.2.2` in `Hildegard.spec`. Tag `v1.2.2`
+  pushed → CI built + attached both zips to the GitHub Release.
 
 ## 1. What this project is
 
