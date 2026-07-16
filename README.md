@@ -16,13 +16,14 @@ spec.
 
 ## Status
 
-**All 26 disease groups** work end-to-end against live PubMed, producing a
+**All 27 disease groups** work end-to-end against live PubMed, producing a
 disease-grouped digest of identification info + abstract per paper.
 
-- **Hematologic (15):** AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle
-  cell lymphoma, marginal zone lymphoma, Hodgkin, multiple myeloma, ALL, CML,
-  aplastic anemia, CHIP (30-day window + observational override), sickle cell
-  (gene/cell-therapy override). Journals: Tier 1 + Tier 2-Hematology.
+- **Hematologic (16):** AML, MDS, MPN, CLL, DLBCL, follicular lymphoma, mantle
+  cell lymphoma, marginal zone lymphoma, T-cell lymphoma, Hodgkin, multiple
+  myeloma, ALL, CML, aplastic anemia, CHIP (30-day window + observational
+  override), sickle cell (gene/cell-therapy override). Journals: Tier 1 +
+  Tier 2-Hematology.
 - **Solid tumor (11):** head & neck, breast, lung, pancreatic, gastric, liver
   (hepatocellular/biliary), colorectal, melanoma, prostate, sarcomas, thyroid.
   Journals: Tier 1 + Tier 2-Oncology.
@@ -157,7 +158,7 @@ python -m pipeline.main --group aml --start-date 2026-01-01 --end-date 2026-03-3
 # rolling window of a custom length, counted back from the end date (today):
 python -m pipeline.main --group aml --window-days 30
 
-# default: every group with active=True in config (all 26 groups):
+# default: every group with active=True in config (all 27 groups):
 python -m pipeline.main
 ```
 
@@ -188,12 +189,13 @@ Disable the whole scan with `--no-fresh-scan`.
 
 Active group keys — hematologic: `aml`, `mds`, `mpn`, `cll`, `dlbcl`,
 `follicular_lymphoma`, `mantle_cell_lymphoma`, `marginal_zone_lymphoma`,
-`hodgkin`, `multiple_myeloma`, `all`, `cml`, `aplastic_anemia`, `chip`,
+`tcell_lymphoma`, `hodgkin`, `multiple_myeloma`, `all`, `cml`,
+`aplastic_anemia`, `chip`,
 `sickle_cell`; solid tumor: `head_neck`, `breast`, `lung`, `pancreatic`,
 `gastric`, `liver`, `colorectal`, `melanoma`, `prostate`, `sarcomas`,
 `thyroid`.
 
-Note: a full default run queries all 26 groups (plus their fresh scans), so it
+Note: a full default run queries all 27 groups (plus their fresh scans), so it
 makes a lot of PubMed calls and can take a while. Use `--max-items` or run a
 single group at a time to keep test runs quick.
 

@@ -10,9 +10,10 @@ or exact full title, NOT arbitrary name variants, so a journal name copied
 from Google Scholar's h5-index page will often silently return zero hits
 until resolved this way.
 
-All 26 groups are `active=True` in this build -- 15 hematologic (journals =
+All 27 groups are `active=True` in this build -- 16 hematologic (journals =
 AML_JOURNALS) and 11 solid-tumor (journals = ONCOLOGY_JOURNALS). Every MeSH
-heading was verified live via `db=mesh` (2026-07-01/02) and every journal
+heading was verified live via `db=mesh` (2026-07-01/02, T-cell lymphoma
+2026-07-16) and every journal
 [Journal] term + ISSN resolved live against PubMed. Adding a group is
 config-only: fill in `mesh_terms`, `journals`, `ctgov_condition`, verify them
 the same way (see the AML `mesh_verified` note), then flip `active=True`.
@@ -220,6 +221,11 @@ DISEASE_GROUPS: dict[str, DiseaseGroup] = {
     "marginal_zone_lymphoma": DiseaseGroup("marginal_zone_lymphoma", "Marginal Zone Lymphoma", "hematologic",
                                             ["Lymphoma, B-Cell, Marginal Zone"], AML_JOURNALS, "marginal zone lymphoma",
                                             active=True, mesh_verified=True),
+    # "Lymphoma, T-Cell" is the umbrella MeSH heading; a PubMed MeSH search
+    # explodes it to the narrower subtypes (peripheral, cutaneous, etc.).
+    "tcell_lymphoma": DiseaseGroup("tcell_lymphoma", "T-Cell Lymphoma", "hematologic",
+                                    ["Lymphoma, T-Cell"], AML_JOURNALS, "T-cell lymphoma",
+                                    active=True, mesh_verified=True),  # verified via db=mesh esearch, 2026-07-16
     "hodgkin": DiseaseGroup("hodgkin", "Hodgkin Lymphoma", "hematologic",
                              ["Hodgkin Disease"], AML_JOURNALS, "Hodgkin lymphoma",
                              active=True, mesh_verified=True),

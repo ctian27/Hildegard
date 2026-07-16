@@ -22,12 +22,21 @@ isn't derivable from the code alone.
 - **Released `v1.2.1`** — tag pushed, CI built + attached
   `Hildegard-macOS.zip` + `Hildegard-Windows.zip` to the GitHub Release.
 
+**After `v1.2.1` (not yet released):**
+- **T-Cell Lymphoma group added** (`tcell_lymphoma`, key/label in `config.py`)
+  — MeSH `Lymphoma, T-Cell` (umbrella heading; a PubMed MeSH search explodes it
+  to peripheral/cutaneous subtypes), verified live 2026-07-16; journals =
+  `AML_JOURNALS`. Brings the total to **27 groups (16 hematologic)**. README +
+  config counts updated. The GUI picks it up automatically (it iterates
+  `config.ACTIVE_GROUPS`). Config-only change; needs a new version tag to reach
+  the public downloadable apps.
+
 ## 1. What this project is
 
 **Hildegard** is a literature-surveillance tool for a hematology/oncology
 physician (the user, `changtai.tian1@gmail.com`). It queries PubMed for
 recently published, practice-relevant papers (phase II/III trials + guidelines)
-across 26 heme/onc disease groups, dedups across runs, and emits a
+across 27 heme/onc disease groups, dedups across runs, and emits a
 disease-grouped **Markdown + PDF digest** of each paper's identification info
 (title / journal / date / PMID / DOI) plus its **verbatim abstract**.
 
@@ -79,7 +88,7 @@ prompts). Override with env `HILDEGARD_HOME`. Digests go to
   complexity + the arm64/x86_64 crash (see §5). Removal was low-risk because an
   abstract-only path already existed and was proven. Now abstract-only is the
   **only** mode. `pipeline/llm.py` was **deleted**. No API key needed anywhere.
-- **All 26 disease groups active.** 15 hematologic (journals =
+- **All 27 disease groups active.** 16 hematologic (journals =
   `AML_JOURNALS` = Tier 1 + Tier 2-Hematology) + 11 solid tumor (journals =
   `ONCOLOGY_JOURNALS` = Tier 1 + Tier 2-Oncology). **Every MeSH heading was
   verified live** via `esearch db=mesh`, and **every journal `[Journal]` filter
@@ -204,7 +213,7 @@ Note: `git push` may need `git config http.postBuffer 524288000` (binary assets)
 ## 7. Verification steps (how each change was checked)
 
 - **MeSH/journals:** live `esearch` (`db=mesh` for headings; `db=pubmed` +
-  `esummary` for `[Journal]`/ISSN). All 26 groups' headings + full journal sets
+  `esummary` for `[Journal]`/ISSN). All 27 groups' headings + full journal sets
   verified this way.
 - **Fresh scan:** reproduced the miss — strict query over a window incl.
   2026-05-31 does NOT return NEJM PMID 42223072; fresh scan DOES. Re-run after
